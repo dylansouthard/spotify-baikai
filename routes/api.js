@@ -1,0 +1,22 @@
+import express from 'express'
+
+import dotenv from 'dotenv'
+import { login, callback, refreshToken, searchTracks, createPlaylist, addTracks } from '../controllers/apiController.js'
+
+dotenv.config()
+
+const router = express.Router()
+
+router.get('/login', login)
+
+router.get('/callback', callback)
+
+router.post('/refresh-token', refreshToken)
+
+router.post('/search-tracks', searchTracks)
+
+router.post('/create-playlist', createPlaylist)
+
+router.post('/add-tracks', addTracks)
+
+export default router
