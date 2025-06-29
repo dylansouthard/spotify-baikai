@@ -39,6 +39,7 @@ export const loginOpenAI = (req, res) => {
     scope,
     redirect_uri: `${process.env.DOMAIN}/openai-callback`,
   })
+  error.log(`Redirect URI used in login: ${process.env.DOMAIN}/openai-callback`)
   res.redirect(`https://accounts.spotify.com/authorize?${params}`)
 }
 
