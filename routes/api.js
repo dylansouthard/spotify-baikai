@@ -10,6 +10,7 @@ import {
   searchTracks,
   createPlaylist,
   addTracks,
+  openaiCallback,
 } from '../controllers/apiController.js'
 
 dotenv.config()
@@ -19,6 +20,8 @@ const router = express.Router()
 router.get('/login', login)
 
 router.get('/callback', callback)
+
+router.get('/openai-callback', openaiCallback)
 
 router.post('/refresh-token', refreshToken)
 
