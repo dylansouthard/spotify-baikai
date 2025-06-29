@@ -67,6 +67,7 @@ export const openaiCallback = asyncHandler(async (req, res) => {
   if (!code || !state) {
     return res.status(400).send('Missing code or state')
   }
+  error.log(`Redirect URI used: ${process.env.DOMAIN}/openai-callback`)
 
   const params = qs.stringify({
     grant_type: 'authorization_code',
