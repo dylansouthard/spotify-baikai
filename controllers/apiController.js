@@ -33,7 +33,7 @@ export const login = (req, res) => {
 
 export const loginOpenAI = (req, res) => {
   const scope = 'playlist-modify-private playlist-modify-public'
-  const state = crypto.randomUUID?.() || Math.random().toString(36).substring(2)
+  const { state } = req.query
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: process.env.SPOTIFY_ID,
