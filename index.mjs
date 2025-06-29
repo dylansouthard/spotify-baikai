@@ -31,6 +31,10 @@ app.get('/openapi.yaml', (req, res) => {
   res.sendFile(path.join(__dirname, 'openapi.yaml'))
 })
 
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, 'privacy.html')) // or 'public/privacy.html'
+})
+
 app.use('/', apiRoutes)
 app.use(errorHandler)
 
