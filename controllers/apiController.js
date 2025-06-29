@@ -38,7 +38,8 @@ export const loginOpenAI = (req, res) => {
     response_type: 'code',
     client_id: process.env.SPOTIFY_ID,
     scope,
-    redirect_uri: `${process.env.DOMAIN}/openai-callback`,
+    redirect_uri: OPEN_AI_CALLBACK,
+    // redirect_uri: `${process.env.DOMAIN}/openai-callback`,
     state,
   })
   console.error(`Redirect URI used in login: ${process.env.DOMAIN}/openai-callback`)
