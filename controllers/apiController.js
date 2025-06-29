@@ -47,6 +47,9 @@ export const loginOpenAI = (req, res) => {
 }
 
 export const tokenOpenAI = asyncHandler(async (req, res) => {
+  console.error('Received /token-openai call')
+  console.error('Headers:', req.headers)
+  console.error('Body:', req.body)
   const { code, redirect_uri } = req.body
   const params = new URLSearchParams({
     grant_type: 'authorization_code',
