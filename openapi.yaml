@@ -100,9 +100,14 @@ paths:
 components:
   securitySchemes:
     OAuth2Auth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://spotify-baikai.dylansouthard.info/login-openai
+          tokenUrl: https://spotify-baikai.dylansouthard.info/token-openai
+          scopes:
+            playlist-modify-private: Modify private playlists
+            playlist-modify-public: Modify public playlists
   schemas:
     CreatePlaylistRequest:
       type: object
