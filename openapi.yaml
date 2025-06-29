@@ -1,92 +1,3 @@
-  /player/play-album:
-    put:
-      summary: Start playback of an album
-      operationId: playAlbum
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                context_uri:
-                  type: string
-              required:
-                - context_uri
-      responses:
-        '204':
-          description: Playback started
-        '400':
-          description: Bad request or playback error
-  /albums/search:
-    get:
-      summary: Search for an album
-      operationId: searchAlbums
-      parameters:
-        - in: query
-          name: query
-          schema:
-            type: string
-          required: false
-        - in: query
-          name: limit
-          schema:
-            type: integer
-          required: false
-      responses:
-        '200':
-          description: Album search results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  query:
-                    type: string
-                  matches:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        name:
-                          type: string
-                        artist:
-                          type: string
-                        uri:
-                          type: string
-  /artists/top:
-    get:
-      summary: Get user's top artists
-      operationId: getTopArtists
-      parameters:
-        - in: query
-          name: limit
-          schema:
-            type: integer
-          required: false
-        - in: query
-          name: offset
-          schema:
-            type: integer
-          required: false
-        - in: query
-          name: time_range
-          schema:
-            type: string
-            enum: [short_term, medium_term, long_term]
-          required: false
-      responses:
-        '200':
-          description: List of top artists
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  artists:
-                    type: array
-                    items:
-                      type: string
 openapi: 3.1.0
 info:
   title: Spotify Playlist Maker API
@@ -245,20 +156,97 @@ paths:
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /player/play-album:
+    put:
+      summary: Start playback of an album
+      operationId: playAlbum
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context_uri:
+                  type: string
+              required:
+                - context_uri
+      responses:
+        '204':
+          description: Playback started
+        '400':
+          description: Bad request or playback error
+  /albums/search:
+    get:
+      summary: Search for an album
+      operationId: searchAlbums
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          required: false
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          required: false
+      responses:
+        '200':
+          description: Album search results
+          content:
+            application/json:
+              schema:
                 type: object
                 properties:
-                  access_token:
+                  query:
                     type: string
-                  refresh_token:
-                    type: string
-                  expires_in:
-                    type: integer
-                  token_type:
-                    type: string
-                required:
-                  - access_token
-                  - token_type
-
+                  matches:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        artist:
+                          type: string
+                        uri:
+                          type: string
+  /artists/top:
+    get:
+      summary: Get user's top artists
+      operationId: getTopArtists
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          required: false
+        - in: query
+          name: offset
+          schema:
+            type: integer
+          required: false
+        - in: query
+          name: time_range
+          schema:
+            type: string
+            enum: [short_term, medium_term, long_term]
+          required: false
+      responses:
+        '200':
+          description: List of top artists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  artists:
+                    type: array
+                    items:
+                      type: string
 components:
   securitySchemes:
     OAuth2Auth:
@@ -270,6 +258,10 @@ components:
           scopes:
             playlist-modify-private: Modify private playlists
             playlist-modify-public: Modify public playlists
+            user-library-read: Read User library
+            user-top-read: Read User Top entries
+            user-read-playback-state: Get playback state
+            user-modify-playback-state: Modify playback state
   schemas:
     CreatePlaylistRequest:
       type: object
@@ -296,5 +288,19 @@ components:
           type: string
       required:
         - refresh_token
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+        token_type:
+          type: string
 security:
   - OAuth2Auth: []
