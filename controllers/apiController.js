@@ -39,7 +39,7 @@ export const loginOpenAI = (req, res) => {
     scope,
     redirect_uri: `${process.env.DOMAIN}/openai-callback`,
   })
-  error.log(`Redirect URI used in login: ${process.env.DOMAIN}/openai-callback`)
+  console.error(`Redirect URI used in login: ${process.env.DOMAIN}/openai-callback`)
   res.redirect(`https://accounts.spotify.com/authorize?${params}`)
 }
 
@@ -58,7 +58,7 @@ export const tokenOpenAI = asyncHandler(async (req, res) => {
     const { access_token, refresh_token, expires_in } = response.data
     res.json({ access_token, refresh_token, expires_in })
   } catch (e) {
-    throwError(ERROR_TYPE.TOKEN_REFRESH, res, err.response?.data)
+    throwError(ERROR_TYPE.TOKEN_REFRESH, res, e.response?.data)
   }
 })
 
@@ -68,7 +68,7 @@ export const openaiCallback = asyncHandler(async (req, res) => {
   if (!code || !state) {
     return res.status(400).send('Missing code or state')
   }
-  error.log(`Redirect URI used: ${process.env.DOMAIN}/openai-callback`)
+  console.error(`Redirect URI used: ${process.env.DOMAIN}/openai-callback`)
 
   const params = qs.stringify({
     grant_type: 'authorization_code',
