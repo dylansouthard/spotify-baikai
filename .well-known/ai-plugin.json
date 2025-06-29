@@ -7,7 +7,7 @@
   "auth": {
     "type": "oauth",
     "client_url": "https://spotify-baikai.dylansouthard.info/login",
-    "authorization_url": "https://accounts.spotify.com/authorize",
+    "authorization_url": "https://spotify-baikai.dylansouthard.info/login",
     "token_url": "https://spotify-baikai.dylansouthard.info/callback",
     "scope": "playlist-modify-private playlist-modify-public"
   },
