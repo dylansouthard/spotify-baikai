@@ -14,6 +14,11 @@ export const ERROR_TYPE = {
     message: 'Failed to create playlist',
     status: 400,
   },
+  PLAY: {
+    type: 'PLAY',
+    message: 'Failed to play',
+    status: 400,
+  },
   SEARCH: {
     type: 'SEARCH',
     message: 'Failed to search',
