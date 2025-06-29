@@ -53,7 +53,8 @@ export const tokenOpenAI = asyncHandler(async (req, res) => {
 
   try {
     const response = await axios.post(`${SF_ACCT_BASE}api/token`, params, URL_ENCODED_HEADERS)
-    res.json(response.data)
+    const { access_token, refresh_token, expires_in } = response.data
+    res.json({ access_token, refresh_token, expires_in })
   } catch (e) {
     throwError(ERROR_TYPE.TOKEN_REFRESH, res, err.response?.data)
   }
