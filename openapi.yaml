@@ -1,3 +1,92 @@
+  /player/play-album:
+    put:
+      summary: Start playback of an album
+      operationId: playAlbum
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                context_uri:
+                  type: string
+              required:
+                - context_uri
+      responses:
+        '204':
+          description: Playback started
+        '400':
+          description: Bad request or playback error
+  /albums/search:
+    get:
+      summary: Search for an album
+      operationId: searchAlbums
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          required: false
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          required: false
+      responses:
+        '200':
+          description: Album search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: string
+                  matches:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        artist:
+                          type: string
+                        uri:
+                          type: string
+  /artists/top:
+    get:
+      summary: Get user's top artists
+      operationId: getTopArtists
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          required: false
+        - in: query
+          name: offset
+          schema:
+            type: integer
+          required: false
+        - in: query
+          name: time_range
+          schema:
+            type: string
+            enum: [short_term, medium_term, long_term]
+          required: false
+      responses:
+        '200':
+          description: List of top artists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  artists:
+                    type: array
+                    items:
+                      type: string
 openapi: 3.1.0
 info:
   title: Spotify Playlist Maker API
@@ -6,7 +95,7 @@ info:
 servers:
   - url: https://spotify-baikai.dylansouthard.info
 paths:
-  /create-playlist:
+  /playlists:
     post:
       summary: Create a new playlist
       operationId: createPlaylist
@@ -19,10 +108,16 @@ paths:
       responses:
         '200':
           description: Playlist created
-  /add-tracks:
+  /playlists/{id}/tracks:
     post:
-      summary: Add tracks to a playlist
-      operationId: addTracks
+      summary: Add tracks to a playlist by ID
+      operationId: addToPlaylist
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -31,20 +126,73 @@ paths:
               $ref: '#/components/schemas/AddTracksRequest'
       responses:
         '200':
-          description: Tracks added
-  /search-tracks:
-    post:
+          description: Tracks added to playlist
+  /tracks/search:
+    get:
       summary: Search for a track
       operationId: searchTracks
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SearchTracksRequest'
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          required: true
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          required: false
       responses:
         '200':
           description: Track results returned
+  /tracks/liked:
+    get:
+      summary: Get user's liked tracks
+      operationId: getLikedTracks
+      responses:
+        '200':
+          description: List of liked tracks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    artist:
+                      type: string
+  /tracks/top:
+    get:
+      summary: Get user's top tracks
+      operationId: getTopTracks
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          required: false
+        - in: query
+          name: time_range
+          schema:
+            type: string
+            enum: [short_term, medium_term, long_term]
+          required: false
+      responses:
+        '200':
+          description: List of top tracks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    artist:
+                      type: string
   /refresh-token:
     post:
       summary: Refresh the user's access token
@@ -87,15 +235,29 @@ paths:
                   type: string
                 client_secret:
                   type: string
+                refresh_token:
+                  type: string
               required:
                 - grant_type
-                - code
-                - redirect_uri
-                - client_id
-                - client_secret
       responses:
         '200':
           description: Access token response from Spotify
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  expires_in:
+                    type: integer
+                  token_type:
+                    type: string
+                required:
+                  - access_token
+                  - token_type
 
 components:
   securitySchemes:
@@ -121,24 +283,12 @@ components:
     AddTracksRequest:
       type: object
       properties:
-        playlistId:
-          type: string
         uris:
           type: array
           items:
             type: string
       required:
-        - playlistId
         - uris
-    SearchTracksRequest:
-      type: object
-      properties:
-        query:
-          type: string
-        limit:
-          type: integer
-      required:
-        - query
     RefreshTokenRequest:
       type: object
       properties:

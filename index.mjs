@@ -1,8 +1,8 @@
-import './util/errorHandler.js'
+// import './util/errorHandler.js'
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import apiRoutes from './routes/api.js'
+import { albumRoutes, artistRoutes, authRoutes, playerRoutes, playlistRoutes, trackRoutes } from './routes/routes.js'
 import errorHandler from './middleware/errorHandler.js'
 
 dotenv.config()
@@ -42,7 +42,12 @@ app.get('/privacy', (req, res) => {
   res.sendFile(path.join(__dirname, 'privacy.html')) // or 'public/privacy.html'
 })
 
-app.use('/', apiRoutes)
+app.use('/', authRoutes)
+app.use('/artists', artistRoutes)
+app.use('/tracks', trackRoutes)
+app.use('/player', playerRoutes)
+app.use('/playlists', playlistRoutes)
+app.use('/albums', albumRoutes)
 app.use(errorHandler)
 
 app.listen(PORT, () => {
