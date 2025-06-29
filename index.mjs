@@ -27,7 +27,7 @@ app.get('/.well-known/ai-plugin.json', (req, res) => {
 
 // Serve OpenAPI YAML with correct Content-Type
 app.get('/openapi.yaml', (req, res) => {
-  res.type('application/yaml') // or 'text/yaml' if that doesn't work
+  res.type('application/yaml') // note:'text/yaml' if this doesn't work
   res.sendFile(path.join(__dirname, 'openapi.yaml'))
 })
 
