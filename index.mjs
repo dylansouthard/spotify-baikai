@@ -19,6 +19,12 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Enable CORS for manifest and OpenAPI
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  next()
+})
+
 // Serve ai-plugin.json with correct Content-Type
 app.get('/.well-known/ai-plugin.json', (req, res) => {
   res.type('application/json')
@@ -37,11 +43,6 @@ app.get('/privacy', (req, res) => {
 
 app.use('/', apiRoutes)
 app.use(errorHandler)
-
-app.use('/robots.txt', function (req, res, next) {
-  res.type('text/plain')
-  res.send('User-agent: *\nDisallow: /')
-})
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`)
