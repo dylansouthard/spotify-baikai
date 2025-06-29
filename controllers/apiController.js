@@ -66,7 +66,7 @@ export const tokenOpenAI = asyncHandler(async (req, res) => {
 
 export const openaiCallback = asyncHandler(async (req, res) => {
   const { code, state } = req.query
-
+  console.error('state is ', state)
   if (!code || !state) {
     return res
       .status(400)
@@ -97,7 +97,7 @@ export const openaiCallback = asyncHandler(async (req, res) => {
       `&token_type=${encodeURIComponent(token_type)}` +
       `&expires_in=${expires_in}` +
       `&state=${encodeURIComponent(state)}`
-
+    console.error('[Redirecting to OpenAI]', redirectToOpenAI)
     res.redirect(redirectToOpenAI)
   } catch (e) {
     console.error('Token exchange failed:', e.response?.data || e)
