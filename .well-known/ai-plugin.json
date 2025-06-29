@@ -1,0 +1,22 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Spotify Playlist Maker",
+  "name_for_model": "spotifyPlaylistMaker",
+  "description_for_human": "Create playlists and add tracks on Spotify based on music recommendations.",
+  "description_for_model": "Use this tool to create playlists and add tracks to Spotify based on the user's preferences. You can search for tracks, create a new playlist, and add tracks to it.",
+  "auth": {
+    "type": "oauth",
+    "client_url": "https://spotify-baikai.dylansouthard.info/login",
+    "authorization_url": "https://accounts.spotify.com/authorize",
+    "token_url": "https://spotify-baikai.dylansouthard.info/callback",
+    "scope": "playlist-modify-private playlist-modify-public"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://spotify-baikai.dylansouthard.info/openapi.yaml",
+    "is_user_authenticated": true
+  },
+  "logo_url": "https://developer.spotify.com/favicon.ico",
+  "contact_email": "contact@dylansouthard.info",
+  "legal_info_url": "https://developer.spotify.com/legal/"
+}

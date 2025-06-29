@@ -1,0 +1,114 @@
+openapi: 3.0.1
+info:
+  title: Spotify Playlist Maker API
+  description: API to search, create playlists, and add tracks on Spotify
+  version: '1.0.0'
+servers:
+  - url: http://localhost:3000
+paths:
+  /login:
+    get:
+      summary: Redirects user to Spotify login for authorization
+      operationId: login
+      parameters:
+        - in: query
+          name: redirect_uri
+          required: false
+          schema:
+            type: string
+          description: Optional redirect URI to override default
+      responses:
+        '302':
+          description: Redirects to Spotify OAuth page
+  /create-playlist:
+    post:
+      summary: Create a new playlist
+      operationId: createPlaylist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlaylistRequest'
+      responses:
+        '200':
+          description: Playlist created
+  /add-tracks:
+    post:
+      summary: Add tracks to a playlist
+      operationId: addTracks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddTracksRequest'
+      responses:
+        '200':
+          description: Tracks added
+  /search-tracks:
+    post:
+      summary: Search for a track
+      operationId: searchTracks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchTracksRequest'
+      responses:
+        '200':
+          description: Track results returned
+  /refresh-token:
+    post:
+      summary: Refresh the user's access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: New access token returned
+
+components:
+  schemas:
+    CreatePlaylistRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+      required:
+        - name
+    AddTracksRequest:
+      type: object
+      properties:
+        playlistId:
+          type: string
+        uris:
+          type: array
+          items:
+            type: string
+      required:
+        - playlistId
+        - uris
+    SearchTracksRequest:
+      type: object
+      properties:
+        query:
+          type: string
+        limit:
+          type: integer
+      required:
+        - query
+    RefreshTokenRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+      required:
+        - refresh_token
