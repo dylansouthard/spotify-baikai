@@ -30,6 +30,35 @@ export const login = (req, res) => {
   res.redirect(`${SF_ACCT_BASE}authorize?${params}`)
 }
 
+export const loginOpenAI = (req, res) => {
+  const scope = 'playlist-modify-private playlist-modify-public'
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: process.env.SPOTIFY_ID,
+    scope,
+    redirect_uri: 'https://oauth.openai.com/v1/auth/callback', // ← OpenAI handles this
+  })
+  res.redirect(`https://accounts.spotify.com/authorize?${params}`)
+}
+
+export const tokenOpenAI = asyncHandler(async (req, res) => {
+  const { code, redirect_uri } = req.body
+  const params = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri,
+    client_id: process.env.SPOTIFY_ID,
+    client_secret: process.env.SPOTIFY_SECRET,
+  })
+
+  try {
+    const response = await axios.post(`${SF_ACCT_BASE}api/token`, params, URL_ENCODED_HEADERS)
+    res.json(response.data)
+  } catch (e) {
+    throwError(ERROR_TYPE.TOKEN_REFRESH, res, err.response?.data)
+  }
+})
+
 export const callback = asyncHandler(async (req, res) => {
   const code = req.query.code
   const params = qs.stringify({

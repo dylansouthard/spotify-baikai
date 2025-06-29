@@ -6,9 +6,9 @@
   "description_for_model": "Use this tool to create playlists and add tracks to Spotify based on the user's preferences. You can search for tracks, create a new playlist, and add tracks to it.",
   "auth": {
     "type": "oauth",
-    "client_url": "https://spotify-baikai.dylansouthard.info/login",
-    "authorization_url": "https://spotify-baikai.dylansouthard.info/login",
-    "token_url": "https://spotify-baikai.dylansouthard.info/callback",
+    "client_url": "https://spotify-baikai.dylansouthard.info/login-openai",
+    "authorization_url": "https://spotify-baikai.dylansouthard.info/login-openai",
+    "token_url": "https://spotify-baikai.dylansouthard.info/token-openai",
     "scope": "playlist-modify-private playlist-modify-public"
   },
   "api": {

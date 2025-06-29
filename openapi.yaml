@@ -1,4 +1,4 @@
-openapi: 3.0.1
+openapi: 3.1.0
 info:
   title: Spotify Playlist Maker API
   description: API to search, create playlists, and add tracks on Spotify
@@ -6,20 +6,6 @@ info:
 servers:
   - url: https://spotify-baikai.dylansouthard.info
 paths:
-  /login:
-    get:
-      summary: Redirects user to Spotify login for authorization
-      operationId: login
-      parameters:
-        - in: query
-          name: redirect_uri
-          required: false
-          schema:
-            type: string
-          description: Optional redirect URI to override default
-      responses:
-        '302':
-          description: Redirects to Spotify OAuth page
   /create-playlist:
     post:
       summary: Create a new playlist
@@ -72,8 +58,51 @@ paths:
       responses:
         '200':
           description: New access token returned
+  /login-openai:
+    get:
+      summary: Initiates Spotify login for ChatGPT plugin
+      operationId: loginOpenAI
+      responses:
+        '302':
+          description: Redirects to Spotify OAuth page
+
+  /token-openai:
+    post:
+      summary: Exchanges authorization code for access token (ChatGPT plugin)
+      operationId: tokenOpenAI
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                grant_type:
+                  type: string
+                code:
+                  type: string
+                redirect_uri:
+                  type: string
+                client_id:
+                  type: string
+                client_secret:
+                  type: string
+              required:
+                - grant_type
+                - code
+                - redirect_uri
+                - client_id
+                - client_secret
+      responses:
+        '200':
+          description: Access token response from Spotify
 
 components:
+  securitySchemes:
+    OAuth2Auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     CreatePlaylistRequest:
       type: object
@@ -112,3 +141,5 @@ components:
           type: string
       required:
         - refresh_token
+security:
+  - OAuth2Auth: []
