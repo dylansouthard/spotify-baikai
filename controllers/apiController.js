@@ -33,11 +33,13 @@ export const login = (req, res) => {
 
 export const loginOpenAI = (req, res) => {
   const scope = 'playlist-modify-private playlist-modify-public'
+  const state = crypto.randomUUID?.() || Math.random().toString(36).substring(2)
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: process.env.SPOTIFY_ID,
     scope,
     redirect_uri: `${process.env.DOMAIN}/openai-callback`,
+    state,
   })
   console.error(`Redirect URI used in login: ${process.env.DOMAIN}/openai-callback`)
   res.redirect(`https://accounts.spotify.com/authorize?${params}`)
@@ -66,7 +68,9 @@ export const openaiCallback = asyncHandler(async (req, res) => {
   const { code, state } = req.query
 
   if (!code || !state) {
-    return res.status(400).send('Missing code or state')
+    return res
+      .status(400)
+      .send('Missing code or state' + `req query is ${req.query} json is ${JSON.stringify(req.query)}`)
   }
   console.error(`Redirect URI used: ${process.env.DOMAIN}/openai-callback`)
 
