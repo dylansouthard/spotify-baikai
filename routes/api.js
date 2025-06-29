@@ -30,6 +30,6 @@ router.post('/add-tracks', addTracks)
 
 router.post('/token-openai', tokenOpenAI)
 
-router.post('/login-openai', loginOpenAI)
+router.get('/login-openai', loginOpenAI)
 
 export default router
