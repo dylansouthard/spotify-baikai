@@ -36,7 +36,7 @@ export const loginOpenAI = (req, res) => {
     response_type: 'code',
     client_id: process.env.SPOTIFY_ID,
     scope,
-    redirect_uri: 'https://oauth.openai.com/v1/auth/callback', // ← OpenAI handles this
+    redirect_uri: 'https://chat.openai.com/aip/g-83a8fa8db29d1a28bd4fed25e76afd0a8bf3fbdd/oauth/callback', // ← OpenAI handles this
   })
   res.redirect(`https://accounts.spotify.com/authorize?${params}`)
 }
