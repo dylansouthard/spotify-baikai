@@ -98,7 +98,20 @@ export const openaiCallback = asyncHandler(async (req, res) => {
       `&expires_in=${expires_in}` +
       `&state=${encodeURIComponent(state)}`
     console.error('[Redirecting to OpenAI]', redirectToOpenAI)
-    res.redirect(redirectToOpenAI)
+    // res.redirect(redirectToOpenAI)
+    const body = qs.stringify({
+      code: access_token,
+      state,
+    })
+    await axios.post(
+      OPEN_AI_CALLBACK, // https://chat.openai.com/aip/g-.../oauth/callback
+      body,
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+    )
+    res.send(`
+    <h1>Spotify connected!</h1>
+    <p>You can now close this window and go back to ChatGPT.</p>
+  `)
   } catch (e) {
     console.error('Token exchange failed:', e.response?.data || e)
     throwError(ERROR_TYPE.TOKEN_REFRESH, res, e.response?.data)
