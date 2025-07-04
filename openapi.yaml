@@ -3,11 +3,19 @@ info:
   title: Spotify Playlist Maker API
   description: API to search, create playlists, and add tracks on Spotify
   version: '1.0.0'
+tags:
+  - name: Playlists
+  - name: Tracks
+  - name: Albums
+  - name: Artists
+  - name: Player
+  - name: Auth
 servers:
   - url: https://spotify-baikai.dylansouthard.info
 paths:
   /playlists:
     post:
+      tags: [Playlists]
       summary: Create a new playlist
       operationId: createPlaylist
       requestBody:
@@ -21,6 +29,7 @@ paths:
           description: Playlist created
   /playlists/{id}/tracks:
     post:
+      tags: [Playlists]
       summary: Add tracks to a playlist by ID
       operationId: addToPlaylist
       parameters:
@@ -40,6 +49,7 @@ paths:
           description: Tracks added to playlist
   /tracks/search:
     get:
+      tags: [Tracks]
       summary: Search for a track
       operationId: searchTracks
       parameters:
@@ -58,6 +68,7 @@ paths:
           description: Track results returned
   /tracks/liked:
     get:
+      tags: [Tracks]
       summary: Get user's liked tracks
       operationId: getLikedTracks
       responses:
@@ -76,6 +87,7 @@ paths:
                       type: string
   /tracks/top:
     get:
+      tags: [Tracks]
       summary: Get user's top tracks
       operationId: getTopTracks
       parameters:
@@ -106,6 +118,7 @@ paths:
                       type: string
   /refresh-token:
     post:
+      tags: [Auth]
       summary: Refresh the user's access token
       operationId: refreshToken
       requestBody:
@@ -119,6 +132,7 @@ paths:
           description: New access token returned
   /login-openai:
     get:
+      tags: [Auth]
       summary: Initiates Spotify login for ChatGPT plugin
       operationId: loginOpenAI
       responses:
@@ -127,6 +141,7 @@ paths:
 
   /token-openai:
     post:
+      tags: [Auth]
       summary: Exchanges authorization code for access token (ChatGPT plugin)
       operationId: tokenOpenAI
       requestBody:
@@ -159,7 +174,8 @@ paths:
                 $ref: '#/components/schemas/TokenResponse'
 
   /player/play-album:
-    put:
+    post:
+      tags: [Player]
       summary: Start playback of an album
       operationId: playAlbum
       requestBody:
@@ -180,6 +196,7 @@ paths:
           description: Bad request or playback error
   /albums/search:
     get:
+      tags: [Albums]
       summary: Search for an album
       operationId: searchAlbums
       parameters:
@@ -216,6 +233,7 @@ paths:
                           type: string
   /artists/top:
     get:
+      tags: [Artists]
       summary: Get user's top artists
       operationId: getTopArtists
       parameters:
@@ -265,6 +283,7 @@ components:
   schemas:
     CreatePlaylistRequest:
       type: object
+      description: Request body to create a new playlist
       properties:
         name:
           type: string
@@ -274,6 +293,7 @@ components:
         - name
     AddTracksRequest:
       type: object
+      description: Request body to add tracks to a playlist
       properties:
         uris:
           type: array
@@ -283,6 +303,7 @@ components:
         - uris
     RefreshTokenRequest:
       type: object
+      description: Request body to refresh Spotify access token
       properties:
         refresh_token:
           type: string
@@ -290,6 +311,7 @@ components:
         - refresh_token
     TokenResponse:
       type: object
+      description: Response returned after token exchange
       required:
         - access_token
         - token_type
