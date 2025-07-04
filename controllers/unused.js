@@ -24,8 +24,8 @@ export const openaiCallback = asyncHandler(async (req, res) => {
     const { access_token, refresh_token, expires_in, token_type } = tokenRes.data
 
     // ✅ Simulate token callback to OpenAI
-    const redirectToOpenAI =
-      API_CONST.OPEN_AI_CALLBACK +
+    const redirectToOpenAI = () =>
+      process.env.OPENAI_CALLBACK +
       `?access_token=${encodeURIComponent(access_token)}` +
       `&refresh_token=${encodeURIComponent(refresh_token)}` +
       `&token_type=${encodeURIComponent(token_type)}` +
@@ -38,7 +38,7 @@ export const openaiCallback = asyncHandler(async (req, res) => {
       state,
     })
     await axios.post(
-      API_CONST.OPEN_AI_CALLBACK, // https://chat.openai.com/aip/g-.../oauth/callback
+      process.env.OPENAI_CALLBACK, // https://chat.openai.com/aip/g-.../oauth/callback
       body,
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
     )
