@@ -63,4 +63,4 @@ export const getTopTracks = asyncHandler(async (req, res) => {
   }
 })
 
-const breakDownTrack = (track) => ({ title: track.name, artist: track.artists.map((a) => a.name).join(', ') })
+export const breakDownTrack = (track) => ({ title: track.name, artist: track.artists.map((a) => a.name).join(', ') })

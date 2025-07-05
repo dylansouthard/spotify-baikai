@@ -9,7 +9,7 @@
     "client_url": "https://spotify-baikai.dylansouthard.info/login-openai",
     "authorization_url": "https://spotify-baikai.dylansouthard.info/login-openai",
     "token_url": "https://spotify-baikai.dylansouthard.info/token-openai",
-    "scope": "playlist-modify-private playlist-modify-public user-library-read user-top-read user-read-playback-state user-modify-playback-state"
+    "scope": "playlist-modify-private playlist-modify-public user-library-read user-top-read user-read-playback-state user-modify-playback-state playlist-read-private"
   },
   "api": {
     "type": "openapi",
