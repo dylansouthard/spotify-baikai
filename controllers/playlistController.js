@@ -19,6 +19,7 @@ export const createPlaylist = asyncHandler(async (req, res) => {
     )
     res.json({ playlistId: playlist.data.id, url: playlist.data.external_urls.spotify })
   } catch (e) {
+    console.log(e)
     throwError(ERROR_TYPE.CREATE_PLAYLIST, res, e.response?.data?.error?.message)
   }
 })
@@ -41,13 +42,15 @@ export const addTracksToPlaylist = asyncHandler(async (req, res) => {
 export const getPlaylists = asyncHandler(async (req, res) => {
   try {
     const { limit = 50, offset = 0 } = req.query
-    const { items, href, next, total } = await axios.post(`${API_CONST.SF_API_BASE}me/playlists`, {
+    const response = await axios.get(`${API_CONST.SF_API_BASE}me/playlists`, {
       headers: getBearerToken(req),
       params: { limit, offset },
     })
+    const { items, href, next, total } = response.data
     const playlists = items.map((p) => breakDownPlaylist(p))
     res.json({ href, next, total, playlists })
   } catch (e) {
+    console.error(e)
     throwError(ERROR_TYPE.GET_PLAYLISTS, res, e.response?.data?.error?.message)
   }
 })
