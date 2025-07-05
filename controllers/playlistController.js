@@ -37,3 +37,19 @@ export const addTracksToPlaylist = asyncHandler(async (req, res) => {
     throwError(ERROR_TYPE.ADD_TRACKS, res, e.response?.data?.error?.message)
   }
 })
+
+export const getPlaylists = asyncHandler(async (req, res) => {
+  try {
+    const { limit = 50, offset = 0 } = req.query
+    const { items, href, next, total } = await axios.post(`${API_CONST.SF_API_BASE}me/playlists`, {
+      headers: getBearerToken(req),
+      params: { limit, offset },
+    })
+    const playlists = items.map((p) => breakDownPlaylist(p))
+    res.json({ href, next, total, playlists })
+  } catch (e) {
+    throwError(ERROR_TYPE.GET_PLAYLISTS, res, e.response?.data?.error?.message)
+  }
+})
+
+const breakDownPlaylist = (playlist) => ({ id: playlist.id, name: playlist.name })
