@@ -63,4 +63,33 @@ export const getTopTracks = asyncHandler(async (req, res) => {
   }
 })
 
+export const getRecentTracks = asyncHandler(async (req, res) => {
+  const {limit = 50, after, before} = req.query
+  try {
+    const response = await axios.get(`${API_CONST.SF_API_BASE}me/player/recently-played`, {
+      headers: getBearerToken(req),
+      params: {limit, after, before}
+    })
+    const tracks = response.data.items.filter(item => item.track).map(item => breakDownTrack(item.track))
+    res.json({tracks})
+  } catch (e) {
+    // Axios errors contain the bearer token in config/request; never dump them.
+    const status = e.response?.status
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+    const clean = (value) => {
+      if (typeof value !== 'string') return null
+      const redacted = token ? value.split(token).join('[REDACTED]') : value
+      return redacted.replace(/Bearer\s+[^\s"<>]+/gi, 'Bearer [REDACTED]')
+    }
+    const message = clean(e.response?.data?.error?.message) || 'Failed to get recently played tracks'
+    const retryAfter = e.response?.headers?.['retry-after']
+    if (retryAfter) res.set('Retry-After', retryAfter)
+    res.status(status >= 400 && status <= 599 ? status : 502).json({
+      error: true, type: 'RECENT_TRACKS', message,
+      spotify_status: status ?? null,
+      reason: clean(e.response?.data?.error?.reason),
+    })
+  }
+})
+
 export const breakDownTrack = (track) => ({ title: track.name, artist: track.artists.map((a) => a.name).join(', ') })

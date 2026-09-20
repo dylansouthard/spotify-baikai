@@ -394,6 +394,7 @@ components:
             user-library-read: Read User library
             user-top-read: Read User Top entries
             user-read-playback-state: Get playback state
+            user-read-recently-played: Read recently played tracks
             user-modify-playback-state: Modify playback state
             playlist-read-private: Find the reusable private playback buffer
   schemas:
