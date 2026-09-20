@@ -178,8 +178,22 @@ paths:
       tags: [Player]
       summary: Start playback of a list of tracks
       operationId: playTracks
+      description: Try direct URI playback, verify player state, then reuse a private playback buffer playlist if verification fails. Use details=true to distinguish verified direct and fallback outcomes.
       parameters:
-        - $ref: '#/components/parameters/PlaybackDevice'
+        - name: device_id
+          in: query
+          required: false
+          description: Spotify device ID. Omit to target the currently active device.
+          schema:
+            type: string
+            minLength: 1
+        - name: details
+          in: query
+          required: false
+          description: Return a JSON playback outcome on success instead of an empty 204.
+          schema:
+            type: boolean
+            default: false
       requestBody:
         required: true
         content:
@@ -199,19 +213,45 @@ paths:
               required:
                 - uris
       responses:
+        '200':
+          description: Verified raw or fallback playback (when details=true)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackOutcome'
         '204':
-          description: Spotify accepted the playback request
+          description: Requested track observed playing, directly or through fallback
         '400':
           description: Invalid input or Spotify playback error
+        '409':
+          description: Another playback request for this account is in progress
         default:
-          description: Spotify error (status and response preserved), or 502 for an unexpected upstream response or transport failure
+          description: Spotify error (status/reason preserved), or 502 if verification/fallback fails
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackOutcome'
   /player/play-album:
     put:
       tags: [Player]
       summary: Start playback of an album, artist, or playlist context
       operationId: playAlbum
+      description: Start an album, artist, or playlist context. This action reports command acceptance; raw-track verification and fallback belong to playTracks.
       parameters:
-        - $ref: '#/components/parameters/PlaybackDevice'
+        - name: device_id
+          in: query
+          required: false
+          description: Spotify device ID. Omit to target the currently active device.
+          schema:
+            type: string
+            minLength: 1
+        - name: details
+          in: query
+          required: false
+          description: Return a JSON playback outcome on success instead of an empty 204.
+          schema:
+            type: boolean
+            default: false
       requestBody:
         required: true
         content:
@@ -226,12 +266,49 @@ paths:
               required:
                 - context_uri
       responses:
+        '200':
+          description: Context command accepted (when details=true); playback state is not verified by this action
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackOutcome'
         '204':
           description: Spotify accepted the playback request
         '400':
           description: Bad request or playback error
         default:
           description: Spotify error (status and response preserved), or 502 for an unexpected upstream response or transport failure
+  /player/devices:
+    get:
+      tags: [Player]
+      summary: List available Spotify Connect devices
+      description: Inspect active/restricted devices when playback fails. This never transfers playback; Spotify may omit unsupported or sleeping devices.
+      operationId: getDevices
+      responses:
+        '200':
+          description: Available devices with IDs, names, types, active and restricted flags
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: [string, 'null']
+                        name:
+                          type: string
+                        type:
+                          type: string
+                        is_active:
+                          type: boolean
+                        is_restricted:
+                          type: boolean
+        default:
+          description: Spotify device lookup error, with status and reason
   /albums/search:
     get:
       tags: [Albums]
@@ -304,15 +381,6 @@ paths:
                     items:
                       type: string
 components:
-  parameters:
-    PlaybackDevice:
-      in: query
-      name: device_id
-      required: false
-      description: Spotify device ID. Omit to target the currently active device.
-      schema:
-        type: string
-        minLength: 1
   securitySchemes:
     OAuth2Auth:
       type: oauth2
@@ -327,7 +395,56 @@ components:
             user-top-read: Read User Top entries
             user-read-playback-state: Get playback state
             user-modify-playback-state: Modify playback state
+            playlist-read-private: Find the reusable private playback buffer
   schemas:
+    PlaybackOutcome:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        outcome:
+          type: string
+          enum: [raw_verified, fallback_verified, accepted, api_error, fallback_failed]
+        requested_mode:
+          type: string
+          enum: [uris, context_uri]
+        effective_mode:
+          type: [string, 'null']
+          description: uris, context_uri, or playlist_context_fallback on success; null on failure
+        spotify_status:
+          type: [integer, 'null']
+        raw_spotify_status:
+          type: [integer, 'null']
+        fallback_used:
+          type: boolean
+          description: Whether fallback was attempted, including attempts that failed
+        fallback_reason:
+          type: [string, 'null']
+        playlist_id:
+          type: string
+        verification:
+          type: [object, 'null']
+          properties:
+            verified:
+              type: boolean
+            attempts:
+              type: integer
+            is_playing:
+              type: boolean
+            current_uri:
+              type: [string, 'null']
+            device_id:
+              type: [string, 'null']
+            device_matches:
+              type: boolean
+        stage:
+          type: string
+        reason:
+          type: string
+        message:
+          type: string
+        spotify_response:
+          description: Sanitized Spotify error response, if any
     CreatePlaylistRequest:
       type: object
       description: Request body to create a new playlist

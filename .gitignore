@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 .env
 .htaccess
+.spotify-playback/
 
 
 node_modules
@@ -27,3 +28,4 @@ dist-ssr
 *.sw?
 docs/
 test/
+tests/
