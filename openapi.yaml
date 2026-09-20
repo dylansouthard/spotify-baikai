@@ -173,27 +173,65 @@ paths:
               schema:
                 $ref: '#/components/schemas/TokenResponse'
 
-  /player/play-album:
-    post:
+  /player/play-tracks:
+    put:
       tags: [Player]
-      summary: Start playback of an album
-      operationId: playAlbum
+      summary: Start playback of a list of tracks
+      operationId: playTracks
+      parameters:
+        - $ref: '#/components/parameters/PlaybackDevice'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              additionalProperties: false
+              properties:
+                uris:
+                  type: array
+                  minItems: 1
+                  description: Spotify track URIs as a JSON array, not a JSON-encoded string.
+                  items:
+                    type: string
+                    pattern: '^spotify:track:[A-Za-z0-9]{22}$'
+                  example: ['spotify:track:71kapcyWLxdv7kQpM6jFTv']
+              required:
+                - uris
+      responses:
+        '204':
+          description: Spotify accepted the playback request
+        '400':
+          description: Invalid input or Spotify playback error
+        default:
+          description: Spotify error (status and response preserved), or 502 for an unexpected upstream response or transport failure
+  /player/play-album:
+    put:
+      tags: [Player]
+      summary: Start playback of an album, artist, or playlist context
+      operationId: playAlbum
+      parameters:
+        - $ref: '#/components/parameters/PlaybackDevice'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
               properties:
                 context_uri:
                   type: string
+                  pattern: '^spotify:(album|artist|playlist):[A-Za-z0-9]{22}$'
               required:
                 - context_uri
       responses:
         '204':
-          description: Playback started
+          description: Spotify accepted the playback request
         '400':
           description: Bad request or playback error
+        default:
+          description: Spotify error (status and response preserved), or 502 for an unexpected upstream response or transport failure
   /albums/search:
     get:
       tags: [Albums]
@@ -266,6 +304,15 @@ paths:
                     items:
                       type: string
 components:
+  parameters:
+    PlaybackDevice:
+      in: query
+      name: device_id
+      required: false
+      description: Spotify device ID. Omit to target the currently active device.
+      schema:
+        type: string
+        minLength: 1
   securitySchemes:
     OAuth2Auth:
       type: oauth2
