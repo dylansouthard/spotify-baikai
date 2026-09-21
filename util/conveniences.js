@@ -6,3 +6,82 @@ export const throwError = (err, res, message = null) => {
   }
   throw error
 }
+
+export function joinArtists(artists) {
+  return artists.map((a) => a.name).join(', ')
+}
+
+export function breakDownSavedAlbum(item) {
+  return {
+    name: item.album.name,
+    artist: joinArtists(item.album.artists),
+    saved: new Date(item.added_at)
+  }
+}
+
+export function sampleItems(total, initialOffset, targetCount = 90, phases = 3, maxLimitPerReq = 50) {
+    const requests = []
+
+    if (total <= targetCount) {
+        let offset = initialOffset
+        while (offset < initialOffset + total) {
+            requests.push({
+                limit:maxLimitPerReq,
+                offset
+            })
+            offset += maxLimitPerReq
+        }
+    } else {
+        const perPhase = Math.floor(targetCount / phases)
+        const remainder = targetCount % phases
+        let carry = 0
+        for (let i = 0; i < phases; i++) {
+            const phaseStart = Math.floor(total * i / phases)
+            const phaseEnd = Math.floor(total * (i + 1) / phases)
+
+            const available = phaseEnd - phaseStart
+            const phaseTarget = perPhase + (i < remainder ? 1 : 0)
+
+            const wanted = phaseTarget + carry
+            const count = Math.min(wanted, available)
+            carry = wanted - count
+            if (count === 0) continue
+
+            const minOffset = phaseStart
+            const maxOffset = phaseEnd - count
+
+            let offset = minOffset + Math.floor(Math.random() * (maxOffset - minOffset + 1)) + initialOffset
+            let limit = Math.min(count, maxLimitPerReq)
+            requests.push({
+                offset,
+                limit
+            })
+
+            let remaining = count - limit
+            while (remaining > 0) {
+              offset = offset + limit
+              limit = Math.min(remaining, maxLimitPerReq)
+              requests.push({
+                offset,
+                limit
+              })
+              remaining -= limit
+            }
+        }
+    }
+
+    return requests
+}
+
+export function sampleArray(arr, max = 100) {
+  if (arr.length <= max) return arr;
+
+  const shuffled = [...arr];
+
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled.slice(0, max);
+}

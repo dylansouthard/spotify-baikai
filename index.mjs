@@ -2,7 +2,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import { albumRoutes, artistRoutes, authRoutes, playerRoutes, playlistRoutes, trackRoutes } from './routes/routes.js'
+import { albumRoutes, artistRoutes, authRoutes, playerRoutes, playlistRoutes, trackRoutes, tasteProfileRoutes } from './routes/routes.js'
 import errorHandler from './middleware/errorHandler.js'
 
 dotenv.config()
@@ -48,6 +48,7 @@ app.use('/tracks', trackRoutes)
 app.use('/player', playerRoutes)
 app.use('/playlists', playlistRoutes)
 app.use('/albums', albumRoutes)
+app.use('/taste-profile', tasteProfileRoutes)
 app.use(errorHandler)
 
 app.listen(PORT, () => {

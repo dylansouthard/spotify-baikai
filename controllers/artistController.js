@@ -4,6 +4,7 @@ import axios from 'axios'
 import { throwError } from '../util/conveniences.js'
 import { ERROR_TYPE } from '../constants/errorsType.js'
 import { API_CONST, getBearerToken } from '../constants/apiConstants.js'
+import { fetchTopItems } from '../services/tasteService.js'
 
 export const getTopArtists = asyncHandler(async (req, res) => {
   const { time_range = 'long_term', limit = 50, offset = 0 } = req.query

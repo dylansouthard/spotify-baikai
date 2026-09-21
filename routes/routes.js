@@ -4,5 +4,6 @@ import authRoutes from './authRoutes.js'
 import artistRoutes from './artistRoutes.js'
 import playerRoutes from './playerRoutes.js'
 import albumRoutes from './albumRoutes.js'
+import tasteProfileRoutes from './profileRoutes.js'
 
-export { albumRoutes, artistRoutes, authRoutes, playerRoutes, playlistRoutes, trackRoutes }
+export { albumRoutes, artistRoutes, authRoutes, playerRoutes, playlistRoutes, trackRoutes, tasteProfileRoutes }
