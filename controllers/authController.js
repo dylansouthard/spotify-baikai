@@ -6,7 +6,7 @@ import { ERROR_TYPE } from '../constants/errorsType.js'
 import { API_CONST, getCredentials } from '../constants/apiConstants.js'
 
 const SCOPE =
-  'playlist-modify-private playlist-modify-public user-library-read user-top-read user-read-playback-state user-modify-playback-state playlist-read-private user-read-recently-played'
+  'playlist-modify-private playlist-modify-public user-library-read user-top-read user-read-playback-state user-modify-playback-state playlist-read-private user-read-recently-played user-read-currently-playing user-follow-read user-read-currently-playing'
 
 export const login = (req, res) => {
   const params = new URLSearchParams({
