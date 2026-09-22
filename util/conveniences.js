@@ -11,10 +11,14 @@ export function joinArtists(artists) {
   return artists.map((a) => a.name).join(', ')
 }
 
+export function getFirstArtist(artists) {
+  return artists?.length > 0 ? artists[0].name : ""
+}
+
 export function breakDownSavedAlbum(item) {
   return {
     name: item.album.name,
-    artist: joinArtists(item.album.artists),
+    artist: getFirstArtist(item.album.artists),
     saved_at: new Date(item.added_at)
   }
 }

@@ -4,6 +4,7 @@ import axios from 'axios'
 import { throwError } from '../util/conveniences.js'
 import { ERROR_TYPE } from '../constants/errorsType.js'
 import { API_CONST, getBearerToken } from '../constants/apiConstants.js'
+import { joinArtists, getFirstArtist } from '../util/conveniences.js'
 
 export const searchTracks = asyncHandler(async (req, res) => {
   const { query = 'Andromeda Weyes Blood', limit = 10 } = req.query
@@ -92,4 +93,4 @@ export const getRecentTracks = asyncHandler(async (req, res) => {
   }
 })
 
-export const breakDownTrack = (track) => ({ title: track.name, artist: track.artists.map((a) => a.name).join(', ') })
+export const breakDownTrack = (track, allArtists = true) => ({ title: track.name, artist: allArtists ? joinArtists(track.artists) : getFirstArtist(track.artists)})

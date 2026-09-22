@@ -55,7 +55,7 @@ async function getTopItems(type, headers) {
 
       resData.values[timeRange] = type === 'artists'
           ? items.map(artist => artist.name)
-          : items.map(breakDownTrack).reduce((acc, trk) => {
+          : items.map(i => breakDownTrack(i, false)).reduce((acc, trk) => {
             if (!acc[trk.artist]) acc[trk.artist] = []
             acc[trk.artist].push(trk.title)
             return acc
@@ -74,6 +74,7 @@ async function getSavedAlbums(headers, targetCount = 120, phases = 3, mostRecent
     try {
         const firstRes = await fetchSavedAlbums({limit:mostRecentLimit, headers})
         const total = firstRes.total
+        resData.savedAlbums['total'] = total
         const albums = firstRes.albums
         resData.savedAlbums['most_recent'] = albums.map(breakDownSavedAlbum)
         const remainingTotal = total - albums.length
@@ -99,7 +100,7 @@ async function getSavedAlbums(headers, targetCount = 120, phases = 3, mostRecent
             }, {})
 
             resData.savedAlbums[phase] = {}
-            resData.savedAlbums[phase]['position'] = `from ${offset} of ${total}`
+            resData.savedAlbums[phase]['offset'] = offset
             resData.savedAlbums[phase]['albums'] = albumByYear
             resData.errors.push(...errors)
         })
