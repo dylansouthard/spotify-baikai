@@ -4,6 +4,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import { albumRoutes, artistRoutes, authRoutes, playerRoutes, playlistRoutes, trackRoutes, tasteProfileRoutes } from './routes/routes.js'
 import errorHandler from './middleware/errorHandler.js'
+import tokenOpenAIDiagnostics from './middleware/tokenOpenAIDiagnostics.js'
 
 dotenv.config()
 
@@ -11,6 +12,8 @@ const app = express()
 const PORT = process.env.PORT || 3000
 
 app.use(cors())
+// Register before body parsers so malformed token requests are diagnosed too.
+app.use('/token-openai', tokenOpenAIDiagnostics)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
