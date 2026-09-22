@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Spotify Playlist Maker API
-  description: API to search, create playlists, and add tracks on Spotify
+  description: API to summarize music taste, search Spotify, create playlists, and control playback
   version: '1.0.0'
 tags:
   - name: Playlists
@@ -10,9 +10,45 @@ tags:
   - name: Artists
   - name: Player
   - name: Auth
+  - name: Profile
 servers:
   - url: https://spotify-baikai.dylansouthard.info
 paths:
+  /taste-profile:
+    get:
+      tags: [Profile]
+      summary: Get the user's music taste profile
+      operationId: getUserTasteProfile
+      description: >-
+        Get top artists and tracks across short, medium, and long term, recent
+        and sampled saved albums, and sampled followed artists for personalized
+        recommendations. Results may be partial; inspect errors before
+        interpreting missing sections.
+      security:
+        - OAuth2Auth:
+            - user-top-read
+            - user-library-read
+            - user-follow-read
+      responses:
+        '200':
+          description: Combined taste profile, possibly with partial results and section errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TasteProfileResponse'
+        default:
+          description: Unexpected error while building the taste profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: boolean
+                  message:
+                    type: string
+                  type:
+                    type: string
   /playlists:
     post:
       tags: [Playlists]
@@ -393,11 +429,97 @@ components:
             playlist-modify-public: Modify public playlists
             user-library-read: Read User library
             user-top-read: Read User Top entries
+            user-follow-read: Read followed artists
             user-read-playback-state: Get playback state
             user-read-recently-played: Read recently played tracks
             user-modify-playback-state: Modify playback state
             playlist-read-private: Find the reusable private playback buffer
   schemas:
+    TasteProfileResponse:
+      type: object
+      required:
+        - top_artists
+        - top_tracks
+        - saved_albums
+        - followed_artists
+        - errors
+      properties:
+        top_artists:
+          type: object
+          description: Up to 50 artist names per time range. A range may be absent if its request failed.
+          properties:
+            long_term:
+              type: array
+              items:
+                type: string
+            medium_term:
+              type: array
+              items:
+                type: string
+            short_term:
+              type: array
+              items:
+                type: string
+        top_tracks:
+          type: object
+          description: Top track titles grouped by artist name for each time range. A range may be absent if its request failed.
+          properties:
+            long_term:
+              $ref: '#/components/schemas/TasteProfileTracksByArtist'
+            medium_term:
+              $ref: '#/components/schemas/TasteProfileTracksByArtist'
+            short_term:
+              $ref: '#/components/schemas/TasteProfileTracksByArtist'
+        saved_albums:
+          type: object
+          description: Recent saves and a sample of older saved albums. Either section may be absent when unavailable or a request fails.
+          properties:
+            most_recent:
+              type: array
+              items:
+                $ref: '#/components/schemas/TasteProfileSavedAlbum'
+            sampled_albums:
+              type: array
+              items:
+                $ref: '#/components/schemas/TasteProfileSavedAlbum'
+        followed_artists:
+          type: array
+          description: Up to 100 artist names sampled from at most 300 followed artists fetched. Check errors if empty.
+          items:
+            type: string
+        errors:
+          type: object
+          description: >-
+            Empty when no errors were recorded. Top-item errors currently use
+            numeric keys with field/message objects. saved_albums, when present,
+            is an array of error strings or field/message objects; followed_artists
+            is an error string. A 200 response does not guarantee every section succeeded.
+          properties: {}
+          additionalProperties: true
+    TasteProfileTracksByArtist:
+      type: object
+      description: Artist names (or comma-separated collaborators) mapped to arrays of track titles.
+      properties: {}
+      additionalProperties:
+        type: array
+        items:
+          type: string
+    TasteProfileSavedAlbum:
+      type: object
+      required:
+        - name
+        - artist
+        - saved
+      properties:
+        name:
+          type: string
+        artist:
+          type: string
+          description: Comma-separated artist names
+        saved:
+          type: string
+          format: date-time
+          description: When the user saved the album
     PlaybackOutcome:
       type: object
       properties:

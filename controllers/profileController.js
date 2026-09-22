@@ -76,23 +76,34 @@ async function getSavedAlbums(headers, targetCount = 120, phases = 3, mostRecent
         const total = firstRes.total
         const albums = firstRes.albums
         resData.savedAlbums['most_recent'] = albums.map(breakDownSavedAlbum)
-        console.log(`saved albums are ${JSON.stringify(resData.savedAlbums)}`);
         const remainingTotal = total - albums.length
         if (remainingTotal < 1) return resData
 
         const requestParams = sampleItems(remainingTotal, mostRecentLimit, targetCount, phases, 50)
-
-        const results = await Promise.allSettled(
-            requestParams.map(p => fetchSavedAlbums({headers, ...p}))
+        
+        const phaseResults = await Promise.all(
+            Object.entries(requestParams).map(([phase, {requests, offset, total}]) => fetchAlbumPhase(phase, requests, offset, total, headers))
         )
-        const {fulfilled, errors} = divideResults(results)
-        resData.errors = errors
 
-        const allAlbums = fulfilled.map(f => f.albums).reduce((acc, albs) => {
-            return [...acc, ...albs.map(breakDownSavedAlbum)]
-        }, [])
+        
 
-        resData.savedAlbums['sampled_albums'] = allAlbums
+        phaseResults.forEach(({phase, albums, errors, offset, total}) => {
+
+            const albumByYear = albums.reduce((acc, alb) => {
+                const year = alb.saved_at.getFullYear()
+                if (!acc[year]) acc[year] = {}
+                if (!acc[year][alb.artist]) acc[year][alb.artist] = []
+                acc[year][alb.artist].push(alb.name)
+
+                return acc
+            }, {})
+
+            resData.savedAlbums[phase] = {}
+            resData.savedAlbums[phase]['position'] = `from ${offset} of ${total}`
+            resData.savedAlbums[phase]['albums'] = albumByYear
+            resData.errors.push(...errors)
+        })
+
     } catch(e) {
         addError(resData.errors, e, 'saved albums')
     }
@@ -110,6 +121,25 @@ async function getFollowedArtists(headers, totalReqLimit = 300, sampleLimit = 10
           ?? 'Unknown error'
     }
     return resData
+}
+
+async function fetchAlbumPhase(phase, requests, offset, total, headers) {
+  const results = await Promise.allSettled(
+    requests.map(params => fetchSavedAlbums({ headers, ...params }))
+  )
+
+  const albums = []
+  const errors = []
+
+  results.forEach(result => {
+    if (result.status === 'fulfilled') {
+      albums.push(...result.value.albums.map(breakDownSavedAlbum))
+    } else {
+      addError(errors, result.reason, `saved_albums_${phase}`)
+    }
+  })
+
+  return { phase, albums, errors, offset, total }
 }
 
 

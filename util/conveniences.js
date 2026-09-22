@@ -15,27 +15,30 @@ export function breakDownSavedAlbum(item) {
   return {
     name: item.album.name,
     artist: joinArtists(item.album.artists),
-    saved: new Date(item.added_at)
+    saved_at: new Date(item.added_at)
   }
 }
 
 export function sampleItems(total, initialOffset, targetCount = 90, phases = 3, maxLimitPerReq = 50) {
-    const requests = []
+    const requests = {}
 
     if (total <= targetCount) {
         let offset = initialOffset
+        const allRequests = []
         while (offset < initialOffset + total) {
-            requests.push({
+            allRequests.push({
                 limit:maxLimitPerReq,
                 offset
             })
             offset += maxLimitPerReq
         }
+        requests['all'] = allRequests
     } else {
         const perPhase = Math.floor(targetCount / phases)
         const remainder = targetCount % phases
         let carry = 0
         for (let i = 0; i < phases; i++) {
+            const currentPhaseRequests = []
             const phaseStart = Math.floor(total * i / phases)
             const phaseEnd = Math.floor(total * (i + 1) / phases)
 
@@ -51,8 +54,9 @@ export function sampleItems(total, initialOffset, targetCount = 90, phases = 3, 
             const maxOffset = phaseEnd - count
 
             let offset = minOffset + Math.floor(Math.random() * (maxOffset - minOffset + 1)) + initialOffset
+            requests[`phase_${i + 1}`] = {offset:`${offset}`, total}
             let limit = Math.min(count, maxLimitPerReq)
-            requests.push({
+            currentPhaseRequests.push({
                 offset,
                 limit
             })
@@ -61,12 +65,14 @@ export function sampleItems(total, initialOffset, targetCount = 90, phases = 3, 
             while (remaining > 0) {
               offset = offset + limit
               limit = Math.min(remaining, maxLimitPerReq)
-              requests.push({
+              currentPhaseRequests.push({
                 offset,
                 limit
               })
               remaining -= limit
             }
+            
+            requests[`phase_${i + 1}`]['requests'] = currentPhaseRequests
         }
     }
 
