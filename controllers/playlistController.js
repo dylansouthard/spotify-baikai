@@ -29,11 +29,14 @@ export const addTracksToPlaylist = asyncHandler(async (req, res) => {
     const { id: playlistId } = req.params
     const { uris } = req.body
     await axios.post(
-      `${API_CONST.SF_API_BASE}playlists/${playlistId}/tracks`,
+      `${API_CONST.SF_API_BASE}playlists/${playlistId}/items`,
       { uris },
       { headers: getBearerToken(req) }
     )
-    res.send('Tracks added')
+    if (res.status !== 201) {
+      throw new Error(`Unexpected Spotify status: ${res.status}`);
+    }
+    res.send(`Tracks added\nsnapshot_id: ${res.data.snapshot_id}`)
   } catch (e) {
     throwError(ERROR_TYPE.ADD_TRACKS, res, e.response?.data?.error?.message)
   }
