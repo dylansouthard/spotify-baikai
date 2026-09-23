@@ -26,21 +26,30 @@ export const createPlaylist = asyncHandler(async (req, res) => {
 
 export const addTracksToPlaylist = asyncHandler(async (req, res) => {
   try {
-    const { id: playlistId } = req.params
-    const { uris } = req.body
-    await axios.post(
+    const { id: playlistId } = req.params;
+    const { uris } = req.body;
+
+    const response = await axios.post(
       `${API_CONST.SF_API_BASE}playlists/${playlistId}/items`,
       { uris },
       { headers: getBearerToken(req) }
-    )
-    if (res.status !== 201) {
-      throw new Error(`Unexpected Spotify status: ${res.status}`);
+    );
+
+    if (response.status !== 201) {
+      throw new Error(`Unexpected Spotify status: ${response.status}`);
     }
-    res.send(`Tracks added\nsnapshot_id: ${res.data.snapshot_id}`)
+
+    res.status(201).send(
+      `Tracks added\nsnapshot_id: ${response.data.snapshot_id}`
+    );
   } catch (e) {
-    throwError(ERROR_TYPE.ADD_TRACKS, res, e.response?.data?.error?.message)
+    throwError(
+      ERROR_TYPE.ADD_TRACKS,
+      res,
+      e.response?.data?.error?.message || e.message
+    );
   }
-})
+});
 
 export const getPlaylists = asyncHandler(async (req, res) => {
   try {
