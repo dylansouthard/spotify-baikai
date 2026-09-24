@@ -5,6 +5,8 @@ import dotenv from 'dotenv'
 import { albumRoutes, artistRoutes, authRoutes, playerRoutes, playlistRoutes, trackRoutes, tasteProfileRoutes } from './routes/routes.js'
 import errorHandler from './middleware/errorHandler.js'
 import tokenOpenAIDiagnostics from './middleware/tokenOpenAIDiagnostics.js'
+import { localhostHostValidation, localhostOriginValidation } from '@modelcontextprotocol/express'
+import { handleMcpRequest, handleMcpJsonParseError } from './mcp/handler.js'
 
 dotenv.config()
 
@@ -16,6 +18,9 @@ app.use(cors())
 app.use('/token-openai', tokenOpenAIDiagnostics)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use(handleMcpJsonParseError)
+
+app.all('/mcp', localhostHostValidation(), localhostOriginValidation(), handleMcpRequest)
 
 import path from 'path'
 import { fileURLToPath } from 'url'

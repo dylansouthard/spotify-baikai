@@ -5,27 +5,17 @@ import { throwError } from '../util/conveniences.js'
 import { ERROR_TYPE } from '../constants/errorsType.js'
 import { API_CONST, getBearerToken } from '../constants/apiConstants.js'
 import { joinArtists, getFirstArtist } from '../util/conveniences.js'
+import { searchTracks as searchTracksService} from '../services/spotifyCatalogService.js'
+
+import { getLikedTracks as getLikedTracksService, getTopTracks as getTopTracksService } from '../services/spotifyLibraryService.js'
 
 export const searchTracks = asyncHandler(async (req, res) => {
   const { query = 'Andromeda Weyes Blood', limit = 10 } = req.query
 
   const headers = getBearerToken(req)
-  const params = {
-    q: query,
-    type: 'track',
-    limit,
-  }
 
   try {
-    const response = await axios.get(`${API_CONST.SF_API_BASE}search`, { headers, params })
-    const matches = response.data.tracks.items.map((track) => ({
-      title: track.name,
-      artist: track.artists.map((a) => a.name).join(', '),
-      album: track.album.name,
-      uri: track.uri,
-      popularity: track.popularity,
-      duration_ms: track.duration_ms,
-    }))
+    const matches = await searchTracksService({query, limit, headers})
 
     res.json({ query, matches })
   } catch (e) {
@@ -37,11 +27,7 @@ export const searchTracks = asyncHandler(async (req, res) => {
 export const getLikedTracks = asyncHandler(async (req, res) => {
   const { limit = 50, offset = 0 } = req.query
   try {
-    const response = await axios.get(`${API_CONST.SF_API_BASE}me/tracks`, {
-      headers: getBearerToken(req),
-      params: { limit, offset },
-    })
-    const tracks = response.data.items.map(({ track }) => breakDownTrack(track))
+    const tracks = await getLikedTracksService({limit, offset, headers: getBearerToken(req)})
     res.json({ tracks })
   } catch (e) {
     console.log(e)
@@ -52,11 +38,7 @@ export const getLikedTracks = asyncHandler(async (req, res) => {
 export const getTopTracks = asyncHandler(async (req, res) => {
   const { time_range = 'long_term', limit = 50, offset = 0 } = req.query
   try {
-    const response = await axios.get(`${API_CONST.SF_API_BASE}me/top/tracks`, {
-      headers: getBearerToken(req),
-      params: { time_range, limit, offset },
-    })
-    const tracks = response.data.items.map((track) => breakDownTrack(track))
+    const tracks = await getTopTracksService({timeRange:time_range, limit, offset, headers:getBearerToken(req)})
     res.json({ tracks })
   } catch (e) {
     console.log(e)

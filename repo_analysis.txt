@@ -1,0 +1,1142 @@
+Technical handoff: adding MCP to spotify-baikai
+Executive summary
+The repository is a small ESM Node/Express application. Its REST interface currently accepts a Spotify access token directly in Authorization: Bearer …, forwards that token to Spotify, and returns simplified Spotify responses.
+The migration should add MCP beside REST, not replace it:
+Existing REST caller                         MCP client
+(Spotify bearer token)                       (Baikai bearer token)
+          |                                           |
+          v                                           v
+   Express controllers                      /mcp + MCP auth
+          |                                           |
+          +-------------------+-----------------------+
+                              |
+                              v
+                     shared Spotify services
+                              |
+                              v
+                       Spotify Web API
+The most reusable component today is playback: services/spotifyPlayback.js already contains the direct-play, verification, reusable private-playlist fallback, locking, diagnostics, and detailed result behavior.
+Taste-profile orchestration is reusable in concept, but most of it is currently private inside an Express controller and must be extracted before MCP calls it.
+Current OAuth is not an MCP authorization server. It effectively proxies Spotify’s OAuth endpoints so ChatGPT Actions receives Spotify tokens directly. Standards-compliant MCP requires a separate Baikai access token that identifies the MCP user; Spotify credentials should remain server-side.
+No files were edited or packages installed. The existing 35 tests pass under Node v22.21.1 when local test servers are allowed to bind to loopback. The worktree already contained an untracked controllers/authController.test.js; preserve it.
+Documentation checkpoint, as of 2026-09-23:
+The current MCP TypeScript SDK uses split packages such as @modelcontextprotocol/server and framework/runtime adapters. Its Express recipe uses a stateless handler mounted at /mcp. Official MCP TypeScript package guide, Express serving guide.
+MCP 2026-07-28 has a stateless protocol core and prefers Client ID Metadata Documents; DCR remains for compatibility but is deprecated in the current MCP specification. MCP 2026-07-28 release.
+Current OpenAI guidance requires OAuth 2.1/MCP discovery, PKCE S256, resource/audience binding, token validation, and current ChatGPT-specific linking metadata. OpenAI MCP authentication guidåe.
+These requirements and SDK package names must be rechecked at Milestones 1 and 6 because MCP and client support are evolving quickly.
+1. Current architecture
+Application bootstrap
+[index.mjs (line 1)](/Users/dylan/Downloads/spotify-baikai/index.mjs:1) does all application setup:
+Loads .env using dotenv.config().
+Creates an Express app.
+Enables broad CORS.
+Installs /token-openai diagnostic middleware before body parsing.
+Installs JSON and URL-encoded body parsing.
+Serves the legacy Action manifest, OpenAPI file, and privacy page.
+Mounts all REST routers.
+Installs the JSON error middleware.
+Calls app.listen() directly.
+There is no separate createApp() module, dependency injection container, authentication middleware, configuration validation, or database initialization.
+Current request architecture
+ChatGPT Custom GPT Action / REST client
+              |
+              | Authorization: Bearer <Spotify access token>
+              v
+         index.mjs / Express
+              |
+              v
+           routes/*
+              |
+              v
+        controllers/*
+       /       |        \
+      /        |         \
+direct Axios   |    reusable services
+calls          |      - tasteService
+               |      - spotifyPlayback
+               |      - playbackState
+               v
+         Spotify Web API
+Most business logic still lives in controllers. Playback is the main exception.
+Configuration
+Configuration is read directly from process.env:
+PORT
+SPOTIFY_ID
+SPOTIFY_SECRET
+REDIRECT_URI
+OPENAI_CALLBACK
+SPOTIFY_OAUTH_DEBUG
+SPOTIFY_PLAYBACK_DEBUG
+SPOTIFY_PLAYBACK_STATE_DIR
+NODE_ENV
+There is no startup validation. Missing values normally cause failures only when the corresponding path is exercised.
+.env is ignored by Git. Playback’s local state directory, .spotify-playback/, is also ignored.
+Runtime and dependencies
+Facts from package.json, package-lock.json, and the installed environment:
+Item	Current state
+Module system	ESM via "type": "module"
+Declared Node engine	None
+Inspected Node version	v22.21.1
+Express	Declared ^4.18.2; installed/locked 4.21.2
+Spotify SDK	None; raw Axios calls
+HTTP library	Axios 1.10.0
+Database	None
+Authentication library	None
+Validation/schema library	None
+Async controller wrapper	express-async-handler
+Test runner	Built-in node:test
+MCP SDK	None
+Other	cors, dotenv, nodemailer; nodemailer is not referenced in inspected source
+Development dependency	nodemon, currently missing from local node_modules
+
+
+2. Relevant file map
+Bootstrap, routing, and contracts
+Path	Purpose and important exports	Likely change?
+[index.mjs (line 1)](/Users/dylan/Downloads/spotify-baikai/index.mjs:1)	Express initialization, middleware, static legacy files, route mounting, listen()	Yes: mount /mcp; later initialize DB/auth
+[routes/routes.js (line 1)](/Users/dylan/Downloads/spotify-baikai/routes/routes.js:1)	Barrel export for REST routers	Probably no
+[routes/authRoutes.js (line 1)](/Users/dylan/Downloads/spotify-baikai/routes/authRoutes.js:1)	/login, /callback, /refresh-token, /login-openai, /token-openai	Preserve; add new OAuth routes separately
+[routes/profileRoutes.js (line 1)](/Users/dylan/Downloads/spotify-baikai/routes/profileRoutes.js:1)	GET /taste-profile	No behavioral change
+[routes/trackRoutes.js (line 1)](/Users/dylan/Downloads/spotify-baikai/routes/trackRoutes.js:1)	Search, liked, top, and recent tracks	Controllers will eventually become thinner
+[routes/albumRoutes.js (line 1)](/Users/dylan/Downloads/spotify-baikai/routes/albumRoutes.js:1)	Album search	Controller eventually thinner
+[routes/artistRoutes.js (line 1)](/Users/dylan/Downloads/spotify-baikai/routes/artistRoutes.js:1)	Top artists	Controller eventually thinner
+[routes/playlistRoutes.js (line 1)](/Users/dylan/Downloads/spotify-baikai/routes/playlistRoutes.js:1)	List/create playlists and add tracks	Controller eventually thinner
+[routes/playerRoutes.js (line 1)](/Users/dylan/Downloads/spotify-baikai/routes/playerRoutes.js:1)	Playback and devices	Preserve route behavior
+[openapi.yaml (line 1)](/Users/dylan/Downloads/spotify-baikai/openapi.yaml:1)	Legacy REST/Custom GPT Action contract	Do not use as MCP definition; keep working
+[.well-known/ai-plugin.json (line 1)](/Users/dylan/Downloads/spotify-baikai/.well-known/ai-plugin.json:1)	Legacy ChatGPT plugin/Action manifest	Leave unchanged during MCP work
+[package.json (line 1)](/Users/dylan/Downloads/spotify-baikai/package.json:1)	Dependencies and scripts	Yes: MCP, Zod, SQLite packages later
+
+
+Controllers
+Path	Important behavior	Likely change?
+[controllers/profileController.js (line 11)](/Users/dylan/Downloads/spotify-baikai/controllers/profileController.js:11)	getUserTasteProfile; private aggregation helpers getTopItems, getSavedAlbums, getFollowedArtists, fetchAlbumPhase, addError	Yes: extract aggregation into a shared service
+[controllers/playerController.js (line 18)](/Users/dylan/Downloads/spotify-baikai/controllers/playerController.js:18)	HTTP input validation, playback logging/redaction, invokes runPlayback; getDevices still calls Spotify directly	Small extraction before MCP playback
+[controllers/trackController.js (line 9)](/Users/dylan/Downloads/spotify-baikai/controllers/trackController.js:9)	Track search, liked tracks, top tracks, recent tracks, breakDownTrack	Extract planned tool operations
+[controllers/albumController.js (line 8)](/Users/dylan/Downloads/spotify-baikai/controllers/albumController.js:8)	Album search	Extract search operation
+[controllers/artistController.js (line 9)](/Users/dylan/Downloads/spotify-baikai/controllers/artistController.js:9)	Top artists	Extract operation
+[controllers/playlistController.js (line 7)](/Users/dylan/Downloads/spotify-baikai/controllers/playlistController.js:7)	List/create playlists and add tracks	Extract operations
+[controllers/authController.js (line 9)](/Users/dylan/Downloads/spotify-baikai/controllers/authController.js:9)	Spotify authorization, callbacks, refresh, and legacy OpenAI token proxy	Extract Spotify-specific primitives later; retain routes
+[controllers/unused.js (line 1)](/Users/dylan/Downloads/spotify-baikai/controllers/unused.js:1)	Incomplete, unregistered experimental OpenAI callback	Do not revive for MCP
+
+
+Services and utilities
+Path	Important behavior	Likely change?
+[services/tasteService.js (line 6)](/Users/dylan/Downloads/spotify-baikai/services/tasteService.js:6)	Low-level fetchTopItems, fetchSavedAlbums, fetchFollowedArtists	Reuse largely unchanged
+[services/spotifyPlayback.js (line 32)](/Users/dylan/Downloads/spotify-baikai/services/spotifyPlayback.js:32)	runPlayback, direct playback, state verification, fallback playlist creation/reuse, chunked writes, failure diagnostics	Reuse unchanged as much as possible
+[services/playbackState.js (line 10)](/Users/dylan/Downloads/spotify-baikai/services/playbackState.js:10)	Per-Spotify-account filesystem lock and persisted fallback playlist ID	Preserve initially
+[constants/apiConstants.js (line 1)](/Users/dylan/Downloads/spotify-baikai/constants/apiConstants.js:1)	Spotify base URLs, Spotify credentials, Express-bound getBearerToken(req)	Keep for REST; do not use req inside MCP services
+[constants/errorsType.js (line 1)](/Users/dylan/Downloads/spotify-baikai/constants/errorsType.js:1)	Existing REST error descriptors	Keep for compatibility
+[util/conveniences.js (line 1)](/Users/dylan/Downloads/spotify-baikai/util/conveniences.js:1)	REST throwError, artist/album transformations, sampling	Reuse transformations; characterize sampling first
+[middleware/errorHandler.js (line 1)](/Users/dylan/Downloads/spotify-baikai/middleware/errorHandler.js:1)	Final REST JSON error response	REST only
+[middleware/tokenOpenAIDiagnostics.js (line 7)](/Users/dylan/Downloads/spotify-baikai/middleware/tokenOpenAIDiagnostics.js:7)	Credential-aware redacted diagnostics for /token-openai	Reuse redaction ideas, not its Action-specific middleware shape
+[util/errorHandler.js (line 1)](/Users/dylan/Downloads/spotify-baikai/util/errorHandler.js:1)	Process-level file/error interception	Currently not active; import is commented out
+
+
+Tests and documentation
+Path	Coverage	Note
+[tests/playback.test.js (line 1)](/Users/dylan/Downloads/spotify-baikai/tests/playback.test.js:1)	Playback request shape, verification, fallback, lock, diagnostics, device lookup, OpenAPI playback declarations	Strong regression asset; preserve
+[controllers/authController.test.js (line 1)](/Users/dylan/Downloads/spotify-baikai/controllers/authController.test.js:1)	Legacy token proxy, refresh, logging/redaction	Passes but is currently untracked
+[PLAYBACK.md (line 1)](/Users/dylan/Downloads/spotify-baikai/PLAYBACK.md:1)	Operational playback behavior	Update only when behavior intentionally changes
+[docs/playback-diagnosis.md (line 1)](/Users/dylan/Downloads/spotify-baikai/docs/playback-diagnosis.md:1)	Playback investigation history	Reference material; docs/ is ignored
+
+
+3. Existing request/auth flow
+Normal authenticated Spotify REST request
+There is no Baikai user authentication in this path.
+REST caller
+  |
+  | Authorization: Bearer <Spotify access token>
+  v
+Express route
+  |
+  v
+Controller
+  |
+  | getBearerToken(req)
+  | -> { Authorization: "Bearer <same token>" }
+  v
+Axios
+  |
+  v
+Spotify Web API
+Important properties:
+Baikai does not validate the bearer token locally.
+Baikai does not identify or persist a user.
+Baikai does not refresh the token automatically.
+A missing token becomes an empty Bearer header and fails at Spotify.
+Controllers generally convert Spotify errors through the existing REST error format.
+The REST flow should remain available during MCP development.
+/taste-profile
+GET /taste-profile
+  |
+  | Spotify bearer token
+  v
+getUserTasteProfile
+  |
+  +--> 3 x /me/top/tracks
+  |      long_term, short_term, medium_term
+  |
+  +--> 3 x /me/top/artists
+  |
+  +--> /me/albums?limit=10
+  |      |
+  |      +--> sampled historical album-page requests
+  |
+  +--> paginated /me/following?type=artist
+  |      up to 300 fetched, up to 100 sampled
+  |
+  v
+Combined JSON with partial errors
+The four top-level categories are awaited sequentially. Requests inside a time-range set or album phase are parallelized.
+Behavior to preserve:
+Three time ranges for artists and tracks.
+Track titles grouped by the first credited artist.
+Recent saved albums.
+Random historical saved-album phases.
+Followed-artist sampling.
+Partial results instead of rejecting the whole request when one Spotify subsection fails.
+Existing quirks that need characterization tests before extraction:
+Top-item error arrays are spread into an object; numeric keys from artist errors can overwrite numeric keys from track errors.
+sampleItems() returns a different shape in the “all remaining items fit” branch than getSavedAlbums() expects.
+Saved-album JSON uses saved_at, while the OpenAPI schema describes saved.
+The implementation emits total, most_recent, and phase_* entries; OpenAPI describes a different sampled_albums shape.
+Followed-artist and saved-album sampling is intentionally nondeterministic.
+There are currently no taste-profile tests.
+Do not silently correct these while extracting the service. First record current intended and accidental behavior with fixtures; fix schema/behavior separately if desired.
+Playback
+PUT /player/play-tracks
+  |
+  +--> validate URI array / device / details
+  +--> GET /me to identify Spotify account
+  +--> acquire per-account filesystem lock
+  +--> PUT /me/player/play with raw uris
+  +--> poll GET /me/player at delays 0/300/600 ms
+  |
+  +--> verified? ---- yes ---> structured success or HTTP 204
+  |
+  no
+  |
+  +--> find/reuse/create reserved private buffer playlist
+  +--> replace then append playlist items in ordered chunks of 100
+  +--> play playlist context
+  +--> verify track + context + optional device
+  +--> structured outcome or detailed failure
+Key details:
+Direct-track playback is verified against actual player state.
+Relinked track IDs are recognized.
+Explicit device IDs are checked during verification.
+Context playback reports command acceptance but is not verified.
+The fallback playlist is private and reusable.
+The saved playlist ID and lock live in .spotify-playback/ by default.
+Concurrent playback for the same Spotify user is rejected with PLAYBACK_BUSY.
+Device diagnostics are attached to certain failures.
+runPlayback() returns detailed structured failures instead of throwing most playback errors.
+The default REST success remains an empty 204; details=true returns JSON.
+MCP should call runPlayback() directly and always return the detailed structured result. It should never call the REST endpoint or reproduce the fallback algorithm.
+Regular Spotify OAuth
+Browser -> GET /login
+Baikai -> Spotify /authorize
+           redirect_uri = REDIRECT_URI
+Spotify -> GET /callback?code=...
+Baikai -> Spotify /api/token
+Baikai -> browser JSON {access_token, refresh_token}
+Weaknesses relevant to planning:
+/login does not create a state value.
+/callback does not validate state.
+Tokens are returned to the caller and not stored.
+/refresh-token accepts a supplied refresh token and returns only a new access token.
+If Spotify returns a rotated refresh token through /refresh-token, the handler currently discards it.
+Legacy ChatGPT Action OAuth
+ChatGPT Action
+  |
+  | GET /login-openai?state=...
+  v
+Baikai
+  |
+  | redirects directly to Spotify
+  | Spotify redirect_uri = ChatGPT's configured callback
+  v
+Spotify authorization
+  |
+  | code + state
+  v
+ChatGPT callback
+  |
+  | POST /token-openai
+  | code, redirect_uri, grant_type
+  v
+Baikai
+  |
+  | POST Spotify /api/token
+  | using SPOTIFY_ID + SPOTIFY_SECRET
+  v
+Spotify token response
+  |
+  v
+Baikai returns Spotify access/refresh tokens to ChatGPT
+This is an OAuth proxy for the old Action contract. The bearer token later sent to REST is a Spotify token, not a Baikai-issued credential.
+/token-openai supports both authorization-code and refresh grants and preserves a rotated Spotify refresh token if one is returned. It does not act as a standards-compliant authorization server:
+No Baikai user identity is established.
+No Baikai token is minted.
+Incoming Action client_id and client_secret are observed for diagnostics but not validated.
+The supplied redirect_uri is forwarded to Spotify.
+There is no PKCE validation.
+There is no resource/audience binding.
+There is no protected-resource or authorization-server metadata.
+There is no token revocation, introspection, or Baikai scope enforcement.
+4. Reusable components
+Reuse unchanged or nearly unchanged
+All existing REST routes and legacy files.
+services/spotifyPlayback.js, especially runPlayback().
+services/playbackState.js.
+Low-level functions in services/tasteService.js.
+Artist, track, and saved-album transformation helpers, after output-contract tests are added.
+Playback tests.
+OAuth diagnostic redaction concepts.
+Spotify endpoint constants and application credentials.
+Existing REST bearer-token extraction at the REST adapter boundary.
+Reuse after a small extraction
+The complete taste-profile orchestration currently inside profileController.js.
+Track/album search transformations.
+Top and liked-track transformations.
+Playlist creation/addition logic.
+Device lookup.
+Spotify authorization-code exchange and refresh calls from authController.js.
+Playback input validation and Spotify-error redaction from playerController.js.
+Do not reuse as MCP architecture
+Express controller functions as MCP tool handlers.
+Fake req/res objects.
+Calling REST endpoints over localhost.
+The OpenAPI document as an MCP tool definition.
+/token-openai as the MCP token endpoint.
+Spotify access tokens as MCP access tokens.
+OPENAI_CALLBACK as a generic MCP redirect URI.
+Client-supplied user IDs or Spotify tokens in MCP tool arguments.
+5. Areas needing refactoring
+These are the minimum refactors required for clean reuse.
+5.1 Extract buildTasteProfile
+Add services/tasteProfileService.js with an API such as:
+buildTasteProfile({ headers }) -> serializable taste-profile result
+Move the private orchestration helpers from profileController.js into it. Keep tasteService.js as the low-level Spotify fetch layer.
+Then:
+REST controller: extract Spotify header → call service → res.json.
+MCP tool: resolve Spotify header from credential manager → call the same service.
+Do not duplicate aggregation in an MCP file.
+5.2 Separate HTTP adaptation from Spotify operations
+For planned MCP operations, extract controller bodies into small domain services. Reasonable files for this repository are:
+services/spotifyCatalogService.js
+services/spotifyLibraryService.js
+services/spotifyPlaylistService.js
+services/spotifyDeviceService.js
+These services should accept plain values plus explicit Spotify authorization headers. They must not accept Express requests or responses.
+Controllers retain:
+Query/body/path extraction.
+Existing defaults.
+REST status codes.
+Legacy response wrapping.
+Translation into the current error middleware.
+5.3 Extract shared playback boundary helpers
+Before exposing playback through MCP:
+Move playback input parsing/validation into a pure helper.
+Move Spotify-response redaction into a reusable helper.
+Move getDevices Axios work into a service.
+Do not move or rewrite the runPlayback() algorithm.
+5.4 Extract Spotify OAuth primitives
+Add services/spotifyOAuthService.js containing transport-independent functions:
+Build Spotify authorize URL.
+Exchange an authorization code.
+Refresh an access token.
+Normalize token responses.
+Fetch /me after connection to obtain stable Spotify account identity.
+Legacy controllers should call these functions while keeping their existing HTTP behavior.
+5.5 Keep error models separate from transports
+Shared services should either return a documented result or throw a transport-neutral error. They should not call throwError(..., res).
+REST maps the error to its current JSON response. MCP maps it to a sanitized isError tool result. Authentication failures remain HTTP 401, not ordinary Spotify tool errors.
+6. Proposed MCP architecture
+                    +----------------------+
+REST client ------> | Existing REST routes |
+Spotify bearer      | and controllers      |
+                    +----------+-----------+
+                               |
+                               | explicit Spotify headers
+                               v
+                    +------------------------+
+                    | Shared Spotify services|
+                    | - taste profile        |
+                    | - catalog/library      |
+                    | - playlists/devices    |
+                    | - playback (existing)  |
+                    +-----------+------------+
+                                |
+                                v
+                         Spotify Web API
+
+
+MCP client
+   |
+   | Baikai OAuth bearer token
+   v
+POST /mcp  -- Streamable HTTP
+   |
+   v
+MCP auth verifier
+   |
+   | verified issuer, subject, audience, scopes
+   v
+Per-request auth context
+   |
+   v
+MCP tool adapter
+   |
+   v
+Spotify credential manager
+   |
+   +--> SQLite: user + encrypted Spotify credentials
+   |
+   +--> Spotify token refresh when required
+   |
+   v
+Same shared Spotify services
+Recommended new module layout:
+mcp/
+  createServer.js
+  handler.js
+  tools/
+    serverInfo.js
+    tasteProfile.js
+    catalog.js
+    library.js
+    playlists.js
+    playback.js
+
+auth/
+  mcpTokenVerifier.js
+  protectedResourceMetadata.js
+  authorizationServer/       # only if Baikai hosts this itself
+
+db/
+  database.js
+  migrate.js
+  migrations/
+    001_initial.sql
+
+repositories/
+  userRepository.js
+  spotifyConnectionRepository.js
+  spotifyOAuthStateRepository.js
+
+services/
+  tasteProfileService.js
+  spotifyCredentialService.js
+  spotifyOAuthService.js
+  tokenCryptoService.js
+  spotifyCatalogService.js
+  spotifyLibraryService.js
+  spotifyPlaylistService.js
+  spotifyDeviceService.js
+
+integrations/
+  openai/
+    mcpMetadata.js            # only details that truly differ for ChatGPT
+Design rules:
+Construct MCP auth context from verified credentials, never tool arguments.
+Keep tools thin.
+Return both concise text content and structured content where supported.
+Define strict input and output schemas.
+No client-name branching in Spotify business logic.
+Keep OpenAI-specific redirect data, linking metadata, mTLS policy, or UI-trigger metadata outside tool implementations.
+Keep MCP transport stateless. Durable account state belongs in SQLite.
+7. Database proposal
+Library recommendation
+Use better-sqlite3 unless the deployment environment cannot build or run its native module.
+Why it fits this repository:
+Small API.
+Prepared statements and transactions are straightforward.
+Credential lookups are tiny and fast.
+No ORM is needed.
+The application already uses synchronous configuration/bootstrap patterns.
+Do not keep a transaction open while awaiting a Spotify HTTP request; the library explicitly warns against async work inside its transaction wrapper. better-sqlite3 API.
+If the deployment is pinned to a Node version with a production-approved node:sqlite API, the coach can reevaluate. The repository currently has no Node engine declaration, so relying on a particular built-in SQLite API prematurely would be risky.
+File location
+Recommended:
+BAIKAI_DB_PATH=/persistent/path/spotify-baikai.sqlite
+Development fallback:
+data/spotify-baikai.sqlite
+Add database files, -wal, and -shm companions to .gitignore. The production path must be on a durable local filesystem, not an ephemeral deployment layer or an unreliable network share.
+Migration strategy
+Use small numbered SQL files and a schema_migrations table:
+db/migrations/001_initial.sql
+db/migrations/002_oauth_transactions.sql
+Run migrations once during startup before listen(). Fail startup if migration or encryption-key validation fails.
+Recommended pragmas:
+foreign_keys = ON
+journal_mode = WAL
+A bounded busy_timeout
+Back up the database and its WAL correctly.
+Core schema
+Use at least two durable tables. One table would incorrectly combine Baikai identity and Spotify connection lifecycles.
+CREATE TABLE app_users (
+  id TEXT PRIMARY KEY,
+  auth_issuer TEXT NOT NULL,
+  auth_subject TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  UNIQUE (auth_issuer, auth_subject)
+);
+
+CREATE TABLE spotify_connections (
+  user_id TEXT PRIMARY KEY
+    REFERENCES app_users(id) ON DELETE CASCADE,
+
+  spotify_user_id TEXT NOT NULL UNIQUE,
+
+  refresh_token_enc TEXT NOT NULL,
+  access_token_enc TEXT,
+  access_token_expires_at INTEGER,
+
+  scopes_json TEXT NOT NULL,
+  encryption_key_id TEXT NOT NULL,
+  token_version INTEGER NOT NULL DEFAULT 0,
+
+  reauth_required_at INTEGER,
+  disconnected_at INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+*_enc should be a versioned authenticated-encryption envelope containing nonce, ciphertext, and authentication tag. Do not use reversible obfuscation or a hash for refresh tokens; they must be recoverable for Spotify refresh.
+A third short-lived table is sensible for Spotify linking:
+CREATE TABLE spotify_oauth_states (
+  state_hash TEXT PRIMARY KEY,
+  user_id TEXT,
+  authorization_request_id TEXT,
+  expires_at INTEGER NOT NULL,
+  consumed_at INTEGER,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES app_users(id)
+);
+Store only a hash of the browser-visible state value. Consume it once.
+Why this is the smallest sensible split
+app_users survives Spotify disconnects.
+spotify_connections can be replaced or deleted without deleting the Baikai identity.
+OAuth state has a short lifecycle and should not be mixed with credentials.
+One Spotify connection per internal user is adequate initially.
+Multiple Spotify accounts per user can be introduced later by adding a connection ID and selection semantics; do not prebuild that now.
+Optional authorization-server tables
+Do not add these until the Milestone 6 provider decision.
+If Baikai hosts its own OAuth authorization server, it will probably also need:
+Pending MCP authorization requests.
+One-time authorization codes.
+Hashed MCP refresh tokens.
+Hashed opaque MCP access tokens, or JWT signing-key metadata and revocation state.
+Registered clients if DCR is supported.
+CIMD clients do not necessarily require a durable client row, though safely cached/validated metadata may be useful.
+8. OAuth migration analysis
+What survives
+Spotify-specific pieces that can survive after extraction:
+Spotify authorize URL construction.
+The current Spotify scope set, after deduplication and documentation.
+Authorization-code exchange.
+Refresh-token exchange.
+SPOTIFY_ID and SPOTIFY_SECRET.
+Safe diagnostic redaction.
+Handling of optional refresh-token rotation.
+Calling Spotify /me to get the stable Spotify account ID.
+The existing REST and Action OAuth endpoints for compatibility.
+What is obsolete for MCP
+The following remain only as legacy Action support:
+.well-known/ai-plugin.json as the discovery mechanism.
+OpenAPI as the tool catalog.
+/login-openai redirecting Spotify directly to ChatGPT’s old callback.
+/token-openai returning Spotify tokens to ChatGPT.
+Treating a Spotify bearer token as the credential for the Baikai API.
+Hard-coded or environment-specific old Action callback assumptions.
+Do not delete them during the migration.
+New authorization layer
+The MCP relationship must issue or accept a Baikai credential:
+MCP client
+    |
+    | Baikai access token:
+    | subject = Baikai user
+    | audience/resource = Baikai MCP server
+    | scopes = Baikai tool permissions
+    v
+spotify-baikai
+    |
+    | stored Spotify access token:
+    | subject = Spotify account
+    | scopes = Spotify API permissions
+    v
+Spotify
+A likely nested authorization flow is:
+1. MCP client discovers Baikai protected-resource metadata.
+2. Client identifies/registers itself with Baikai's authorization server.
+3. Client starts authorization code + PKCE against Baikai.
+4. Baikai starts a separate Spotify authorization flow.
+5. Spotify redirects back to a Baikai callback, not the MCP client.
+6. Baikai exchanges the Spotify code and stores encrypted Spotify credentials.
+7. Baikai creates/identifies the internal user.
+8. Baikai returns a one-time Baikai authorization code to the MCP client.
+9. Client exchanges that code with PKCE at Baikai's token endpoint.
+10. Baikai issues its own MCP access/refresh tokens.
+11. Subsequent `/mcp` calls carry only the Baikai token.
+This preserves the two authorization relationships even if the browser experience chains them together.
+Spotify credential behavior
+The credential manager should:
+Load the user’s Spotify connection.
+Return the cached encrypted access token if it remains usable beyond a safety window.
+Otherwise refresh with Spotify.
+If Spotify returns a new refresh token, atomically replace the old one.
+If no refresh token is returned, retain the previous one.
+Update access token, expiry, scope, and version together.
+On invalid_grant, mark reauthorization required and stop retrying.
+Never return Spotify credentials to the MCP client.
+Survive process restart using only DB state and the external encryption key.
+Spotify’s current documentation says refresh responses may or may not rotate the refresh token; the old token must be retained when no replacement is returned. It also currently documents a finite refresh-token lifetime, so reauthorization must be an expected state rather than an exceptional mystery. Spotify refresh documentation.
+Encryption
+Recommended envelope encryption:
+AES-256-GCM using Node’s crypto module.
+Random 12-byte nonce per encryption.
+Authentication tag stored with the ciphertext.
+Associated data binding the token to its user/connection and token type.
+Key supplied outside SQLite, such as SPOTIFY_TOKEN_ENCRYPTION_KEY_BASE64.
+encryption_key_id stored with each record.
+Fail startup if the configured key is missing or malformed.
+Retain old keys temporarily during planned key rotation.
+Never log plaintext, ciphertext envelopes, or keys.
+Encrypt cached access tokens too. They are shorter-lived than refresh tokens but are still credentials.
+Refresh concurrency
+Do not hold a SQLite transaction open across the network request.
+Use either:
+A short DB-backed refresh lease plus an optimistic token_version, or
+An explicitly documented single-process assumption with optimistic versioning.
+The first approach is safer for multiple Node workers on one host. SQLite itself is not a multi-host coordination solution.
+Generic MCP/OAuth responsibilities
+The coach must verify the active MCP authorization specification before implementation. Likely required pieces include:
+Protected-resource metadata.
+Authorization-server or OIDC metadata.
+Authorization-code flow.
+PKCE with S256.
+Exact redirect URI validation.
+Exact issuer validation.
+resource propagation.
+Audience/resource validation by /mcp.
+Expiration and scope validation.
+Client identification via CIMD, DCR fallback, or predefined clients.
+One-time authorization codes.
+Refresh-token rotation and revocation.
+401 plus an appropriate WWW-Authenticate challenge.
+CSRF/state and code-replay protection.
+Use an established authorization provider or maintained OAuth server library if possible. Hand-building an authorization server is a security project, not a small route addition.
+OpenAI-specific responsibilities
+Current official OpenAI guidance additionally describes:
+Exact ChatGPT redirect URIs from the server management page.
+CIMD, DCR, or predefined client choices supported by ChatGPT.
+Per-tool securitySchemes.
+ChatGPT linking behavior involving _meta["mcp/www_authenticate"].
+Optional OpenAI client identification using its published mTLS chain or egress network information.
+Full verification of issuer, audience, expiry, and scopes on every request.
+Keep these in configuration or an OpenAI integration adapter. Do not make all MCP clients present an OpenAI client certificate, and do not branch Spotify tool behavior based on “ChatGPT” versus “Qwen.”
+Disconnect and revocation are separate actions
+Define three distinct operations:
+Revoke an MCP client authorization: the client can no longer call Baikai, but the Spotify link may remain.
+Disconnect Spotify: delete or tombstone the Spotify connection; MCP identity remains and tools report that Spotify must be reconnected.
+Delete the Baikai account: revoke MCP credentials and remove the Spotify connection.
+Do not initially expose account deletion or disconnect as autonomous model tools. Provide a user-controlled web/account flow.
+9. MCP tool mapping
+Recommended initial surface:
+MCP tool	Existing implementation	Refactor required?	Read/write	Notes
+get_server_info	None	New trivial tool	Read	Milestone 1 only; no Spotify
+get_taste_profile	getUserTasteProfile + tasteService.js	Yes: extract aggregator	Read	First real tool
+search_tracks	trackController.searchTracks	Yes	Read	Require query; validate limit
+search_albums	albumController.searchAlbums	Yes	Read	Same catalog service as track search
+get_top_artists	artistController.getTopArtists / fetchTopItems	Small	Read	time_range, limit, offset
+get_top_tracks	trackController.getTopTracks / fetchTopItems	Small	Read	Preserve existing compact output initially
+get_liked_tracks	trackController.getLikedTracks	Yes	Read	Paginated
+list_playlists	playlistController.getPlaylists	Yes	Read	Recommended because add_tracks_to_playlist needs an ID
+get_devices	playerController.getDevices	Yes: extract service	Read	Useful before playback
+create_playlist	playlistController.createPlaylist	Yes	Write	Creates private playlists today
+add_tracks_to_playlist	playlistController.addTracksToPlaylist	Yes	Write	Non-idempotent if retried; duplicates may be added
+play_context	runPlayback({mode:"context_uri"})	Validation/redaction only	Write	Better name than play_album; accepts album, artist, or playlist
+play_tracks	runPlayback({mode:"uris"})	Validation/redaction only	Write	Always return detailed outcome
+
+
+Possible compatibility choice:
+If the desired public name must remain play_album, keep it but describe all supported context types accurately.
+Do not register both play_album and play_context initially; duplicate tools make model selection less predictable.
+Do not expose as tools:
+/login
+/callback
+/login-openai
+/token-openai
+/refresh-token
+Raw token storage or refresh operations
+Defer get_recent_tracks unless a concrete agent use case appears. The taste-profile tool already covers the primary recommendation workflow.
+Suggested MCP scope model:
+Baikai scope	Tools
+spotify.profile.read	Taste profile, top artists/tracks, liked tracks
+spotify.catalog.read	Track and album search
+spotify.playlists.read	List playlists
+spotify.playlists.write	Create playlist, add tracks
+spotify.playback.read	Devices
+spotify.playback.write	Play tracks/context
+
+
+These are Baikai scopes. They are distinct from Spotify’s own consent scopes.
+10. Step-by-step milestones
+Milestone 1 — MCP hello world
+Objective
+Expose a standards-based /mcp endpoint with one harmless tool, get_server_info.
+No Spotify calls, SQLite, or OAuth.
+Files involved
+Add:
+mcp/createServer.js
+mcp/handler.js
+mcp/tools/serverInfo.js
+tests/mcp.test.js
+Modify:
+index.mjs
+package.json
+package-lock.json
+Conceptual lesson
+Learn the difference between:
+Express routing.
+MCP transport.
+MCP server/tool registration.
+Tool discovery and invocation.
+Implementation tasks
+Recheck the current official MCP TypeScript serving guide.
+Pin compatible versions of the current server package, Node/Express adapter, and Zod.
+Create a fresh MCP server per request.
+Register only get_server_info.
+Use Streamable HTTP at app.all('/mcp', ...).
+Keep the handler stateless.
+Preserve Host/Origin protection from the current official Express recipe.
+Do not touch OpenAPI or the Action manifest.
+As of this report, the current package direction is:
+@modelcontextprotocol/server
+@modelcontextprotocol/node
+zod
+Possibly @modelcontextprotocol/express for its safe Express integration
+Do not blindly copy older examples using the monolithic @modelcontextprotocol/sdk.
+Test procedure
+Run the existing npm test.
+Use the official MCP client SDK or MCP Inspector.
+Confirm tools/list contains exactly get_server_info.
+Invoke it and confirm a deterministic result.
+Send malformed JSON and an unknown method; verify protocol errors.
+Confirm existing REST endpoints still mount.
+Expected result
+A client can discover and invoke one no-auth tool at /mcp, and no Spotify code is reached.
+Likely failure modes
+Using an obsolete SDK import path.
+Body already consumed by express.json() but not passed to the adapter.
+Wrong Accept headers during manual testing.
+Host/Origin validation rejecting local Inspector.
+Client supports only an older MCP protocol era.
+Mounting the MCP handler after the final error middleware.
+Dependencies
+None.
+Milestone 2 — first real tool: get_taste_profile
+Objective
+Expose the existing taste-profile behavior through MCP without duplicating it.
+Files involved
+Add:
+services/tasteProfileService.js
+mcp/tools/tasteProfile.js
+tests/tasteProfile.test.js
+tests/mcpTasteProfile.test.js
+Modify:
+controllers/profileController.js
+mcp/createServer.js
+Possibly util/conveniences.js only if serializable DTO normalization is needed
+Conceptual lesson
+Separate domain orchestration from HTTP adapters.
+Implementation tasks
+Write characterization fixtures for the current REST JSON.
+Include full success and partial failures for:One top-track range.
+One top-artist range.
+A saved-album phase.
+Followed artists.
+
+Move the controller-private aggregation functions into tasteProfileService.js.
+Export buildTasteProfile({headers}).
+Make the REST controller call it.
+Register an MCP tool that calls the same function.
+Return structured content plus a concise text summary.
+Preserve partial results and existing field names.
+Use temporary development credential injection, not fake MCP OAuth.
+Recommended temporary mechanism:
+MCP_DEV_AUTH_ENABLED=1
+MCP_DEV_SPOTIFY_ACCESS_TOKEN=<short-lived development token>
+Require explicit development mode and fail closed in production. Do not accept the Spotify token as a tool argument and do not call this “MCP authentication.”
+Test procedure
+Mock Axios responses for every subrequest.
+Compare REST JSON and MCP structured content after JSON serialization.
+Confirm one failed subsection does not erase successful sections.
+Confirm no token enters logs or tool output.
+Optionally invoke with a short-lived test Spotify token using MCP Inspector.
+Expected result
+REST behavior remains the same and MCP returns the same aggregate through shared code.
+Likely failure modes
+Accidentally changing the odd existing error-object shape.
+Returning Date instances instead of the same serialized timestamps.
+“Fixing” saved-album sampling while doing the extraction.
+Duplicating taste orchestration in the MCP tool.
+Treating the development token as the final auth design.
+Dependencies
+Milestone 1.
+Milestone 3 — shared service cleanup
+Objective
+Extract only the operations needed by later MCP tools.
+Files involved
+Add as needed:
+services/spotifyCatalogService.js
+services/spotifyLibraryService.js
+services/spotifyPlaylistService.js
+services/spotifyDeviceService.js
+services/spotifySanitize.js
+services/playbackInput.js
+Modify:
+Corresponding controllers.
+Unit and REST contract tests.
+Conceptual lesson
+One service can support multiple transports when its inputs and outputs do not depend on Express.
+Implementation tasks
+Extract one controller operation at a time.
+Keep request parsing and HTTP response decisions in controllers.
+Pass explicit Spotify headers and normalized arguments to services.
+Preserve existing response envelopes such as {tracks} and {artists}.
+Extract device lookup.
+Extract playback validation and redaction, not playback execution.
+Define a transport-neutral error shape.
+Add tests before and after every extraction.
+Test procedure
+For each operation:
+Test the service with a mocked Axios adapter.
+Test the REST controller’s status and body.
+Verify Spotify URL, method, query, and request body.
+Run all existing playback and auth tests after each small extraction.
+Expected result
+Controllers are thin adapters, while REST output remains compatible.
+Likely failure modes
+Changing defaults while moving destructuring.
+Losing Spotify status or Retry-After.
+Logging an Axios error containing authorization headers.
+Converting every controller at once and making regressions hard to locate.
+Dependencies
+Milestone 2.
+Milestone 4 — SQLite foundation
+Objective
+Add durable user/Spotify-connection storage without yet wiring production OAuth.
+Files involved
+Add:
+db/database.js
+db/migrate.js
+db/migrations/001_initial.sql
+repositories/userRepository.js
+repositories/spotifyConnectionRepository.js
+tests/database.test.js
+Modify:
+package.json
+package-lock.json
+.gitignore
+index.mjs for startup migration
+A new configuration helper if desired
+Conceptual lesson
+Request-stateless does not mean state-free. Identity and credentials live in durable repositories, not Express sessions.
+Implementation tasks
+Add better-sqlite3.
+Validate BAIKAI_DB_PATH.
+Create the parent directory securely.
+Run numbered migrations at startup.
+Enable foreign keys and WAL.
+Implement prepared repository statements.
+Store timestamps consistently.
+Do not store real credentials yet.
+Prove migration idempotence and restart persistence.
+Test procedure
+Use a temporary DB file.
+Run migrations twice.
+Insert and reload a user/connection.
+Test uniqueness and foreign-key constraints.
+Close/reopen the DB and confirm persistence.
+Confirm no DB files appear in Git status.
+Expected result
+The app starts with an initialized durable database and repository tests pass. REST and MCP behavior are otherwise unchanged.
+Likely failure modes
+DB path points to ephemeral or read-only storage.
+Native SQLite package unavailable on the deployment host.
+WAL companion files excluded from backups.
+Migrations run after the server begins accepting traffic.
+One broad table couples unrelated lifecycles.
+Dependencies
+Milestone 3 is useful but not technically mandatory.
+Milestone 5 — Spotify credential persistence
+Objective
+Create the secure Spotify token repository and refresh manager.
+Files involved
+Add:
+services/tokenCryptoService.js
+services/spotifyOAuthService.js
+services/spotifyCredentialService.js
+repositories/spotifyOAuthStateRepository.js
+db/migrations/002_spotify_oauth_states.sql
+Credential-manager tests
+Modify:
+controllers/authController.js to reuse extracted Spotify primitives without changing routes
+Configuration validation
+Conceptual lesson
+OAuth tokens are credentials with lifecycles, concurrency, rotation, and failure states—not ordinary profile fields.
+Implementation tasks
+Validate an external 256-bit encryption key at startup.
+Implement AES-256-GCM versioned envelopes.
+Encrypt both refresh and cached access tokens.
+Implement Spotify code exchange and refresh as shared functions.
+Fetch /me during account linking.
+Persist Spotify ID, encrypted tokens, expiry, and scopes.
+Retain the previous refresh token when Spotify omits a replacement.
+Atomically persist rotated tokens.
+Handle concurrent refresh with a lease/version strategy.
+Mark invalid_grant connections as requiring reauthorization.
+Keep legacy endpoints working.
+Do not yet claim standards-compliant MCP OAuth.
+Test procedure
+Encryption round trip.
+Wrong key and modified ciphertext fail authentication.
+Raw DB bytes do not contain synthetic plaintext tokens.
+Cached access token path avoids refresh.
+Expired access token refreshes.
+Refresh response with rotation replaces token.
+Response without rotation retains token.
+Simulated restart can decrypt and refresh.
+Two concurrent refresh attempts do not corrupt state.
+invalid_grant produces reconnect-required state.
+Logs remain credential-free.
+Expected result
+Given an internal user ID, the credential manager can return a usable Spotify access token after a restart without exposing credentials.
+Likely failure modes
+Regenerating a key on startup and making existing rows unreadable.
+Overwriting a refresh token with undefined.
+Holding a SQLite transaction during an Axios call.
+Concurrent refresh rotation invalidating the stored token.
+Returning Spotify tokens in errors or tool output.
+Dependencies
+Milestone 4.
+Milestone 6 — standards-compliant MCP OAuth
+Objective
+Authenticate MCP users with Baikai credentials and associate them with persisted Spotify connections.
+Files involved
+Likely add:
+auth/protectedResourceMetadata.js
+auth/mcpTokenVerifier.js
+Authorization-server/provider integration modules
+OAuth route module(s)
+db/migrations/003_mcp_oauth.sql if self-hosting authorization state
+integrations/openai/mcpMetadata.js
+OAuth protocol tests
+Modify:
+mcp/handler.js
+mcp/createServer.js
+index.mjs
+Configuration
+Conceptual lesson
+The OAuth client, authorization server, protected resource, and upstream Spotify authorization server have different jobs.
+Mandatory pre-implementation checkpoint
+The coach must verify:
+Current MCP protocol version supported by intended clients.
+Current TypeScript SDK auth API.
+ChatGPT’s current redirect URI and client identification mode.
+Current CIMD and DCR expectations.
+Qwen client OAuth support.
+Whether an external IdP or maintained OAuth server library will be used.
+Whether compatibility with legacy 2025-era MCP clients is needed.
+Implementation tasks
+Choose established IdP versus embedded standards-compliant authorization server.
+Publish protected-resource metadata.
+Publish authorization-server/OIDC metadata.
+Support PKCE S256.
+Propagate and validate resource.
+Bind issued tokens to the MCP resource/audience.
+Resolve verified token subject to app_users.
+Implement the nested Spotify connection flow.
+Protect /mcp and attach auth context.
+Enforce Baikai scopes per tool.
+Add exact issuer, redirect, expiry, replay, and scope checks.
+Implement MCP token refresh/revocation separately from Spotify refresh.
+Add user-controlled Spotify disconnect.
+Apply current ChatGPT-specific linking metadata only at the integration boundary.
+Test procedure
+Positive cases:
+Metadata discovery.
+Valid authorization code + PKCE.
+Correct resource/audience.
+Authenticated tool invocation.
+MCP access refresh.
+Spotify access refresh behind an otherwise valid MCP session.
+Negative cases:
+Wrong verifier.
+Plain PKCE instead of S256.
+Reused authorization code.
+Wrong redirect URI.
+Wrong issuer.
+Wrong resource/audience.
+Missing scope.
+Expired/revoked MCP token.
+Missing Spotify connection.
+Revoked/expired Spotify refresh token.
+Cross-user credential lookup attempt.
+Then test MCP Inspector before ChatGPT.
+Expected result
+The MCP client sees and stores only a Baikai credential. Baikai resolves the internal user and uses encrypted Spotify credentials privately.
+Likely failure modes
+Reusing /token-openai.
+Issuing Spotify tokens as MCP access tokens.
+Missing or inconsistent trailing slash in issuer/resource identifiers.
+Accepting a token for another audience.
+Trusting a user ID supplied as a tool argument.
+Requiring OpenAI-only client behavior from generic clients.
+Implementing OAuth directly from memory.
+Dependencies
+Milestones 4 and 5; Milestone 2 supplies a useful protected tool.
+Milestone 7 — remaining MCP tools
+Objective
+Expose the useful operations in increasing risk order.
+Recommended order
+search_tracks
+search_albums
+get_top_artists
+get_top_tracks
+get_liked_tracks
+list_playlists
+get_devices
+create_playlist
+add_tracks_to_playlist
+play_context
+play_tracks
+Files involved
+mcp/tools/catalog.js
+mcp/tools/library.js
+mcp/tools/playlists.js
+mcp/tools/playback.js
+mcp/createServer.js
+Service and tool tests
+Conceptual lesson
+Tool boundaries should reflect user operations and side-effect risk, not mechanically mirror every HTTP route.
+Implementation tasks
+For every tool:
+Define strict input schema.
+Define stable structured output.
+Write a concise, action-oriented description.
+Declare read/write and idempotency annotations supported by the current SDK.
+Map Baikai scope to the tool.
+Resolve Spotify credentials from auth context.
+Call the shared service.
+Sanitize all errors.
+Add tool-level tests.
+Add one REST-vs-MCP shared-service regression test.
+Playback-specific tasks:
+Reuse the extracted playback validator.
+Call runPlayback().
+Always return detailed outcomes.
+Preserve fallback behavior and locking.
+Do not add automatic retries around playback writes.
+Do not recreate the private-buffer logic in the tool.
+Expected result
+All intended tools are available to any compliant client, while REST remains operational.
+Likely failure modes
+Tool proliferation.
+Overlapping tool names.
+Write operations retried as if idempotent.
+Raw Axios errors exposed to the model.
+Playback tool returns success based only on Spotify 204.
+Existing playlist additions duplicated after a client retry.
+Dependencies
+Milestone 6 and the corresponding Milestone 3 service extraction.
+Milestone 8 — multi-client validation
+Objective
+Demonstrate that the MCP server is not ChatGPT-specific.
+Conceptual lesson
+Protocol compliance is established by interoperability, not by one successful client connection.
+Validation order
+Automated official SDK client test.
+MCP Inspector.
+A second generic MCP client.
+Qwen-Agent or Qwen Code.
+ChatGPT.
+Test matrix
+For each client, verify:
+Server discovery.
+Tool listing.
+One read-only invocation.
+OAuth discovery.
+PKCE flow.
+Correct resource/audience.
+Token refresh.
+One rejected insufficient-scope call.
+One playlist write with explicit user intent.
+Device lookup and playback diagnostics where supported.
+Sanitized errors.
+Reconnection after server restart.
+Server-level validation:
+No sticky session dependency.
+Multiple requests can land on fresh MCP server instances.
+SQLite survives restart.
+Spotify access-token refresh survives restart.
+MCP refresh and Spotify refresh are distinct.
+Existing REST tests pass.
+Legacy Action endpoints still respond.
+No OpenAI callback, certificate, or metadata logic exists inside Spotify services.
+Expected result
+All clients see the same core tool definitions and results. Only connection setup/configuration differs.
+Likely failure modes
+Different clients support different protocol eras.
+A client does not yet support CIMD or remote OAuth.
+SSE/JSON response-mode mismatch.
+ChatGPT linking metadata works while generic HTTP 401 discovery is broken.
+OpenAI-only mTLS or allowlisting blocks other clients.
+Qwen requires a manually supplied token rather than interactive OAuth.
+Dependencies
+All previous milestones.
+11. Risks and unknowns
+Deployment model is unknown. SQLite and the current filesystem playback lock assume durable storage on one host. Multi-host deployment would require a different shared datastore and lock strategy.
+
+Production Node version is unknown. The inspected local version is Node 22.21.1, but package.json has no engines field.
+
+MCP client protocol support will vary. The current MCP SDK/spec is newer than many deployed clients. The coach must test whether compatibility mode is needed.
+
+Authorization-server strategy is undecided. External IdP versus embedded OAuth materially changes Milestone 6’s code and schema.
+
+Baikai identity semantics are undecided. Determine whether one internal user always means one Spotify account, and whether the same Spotify account may be linked through multiple MCP identities.
+
+No user-facing account management exists. Reconnect, disconnect, consent, and deletion require web UX or carefully scoped routes.
+
+Taste-profile behavior is untested. Existing output/schema mismatches and a sampling-shape inconsistency must be characterized before extraction.
+
+Most non-playback controllers lack tests. Service extraction needs new contract tests to avoid accidental REST changes.
+
+The OpenAPI document has drift. Some actual routes are absent; several response schemas do not exactly match controller envelopes. Do not let MCP inherit these inaccuracies.
+
+Legacy OAuth has security limitations. It returns Spotify tokens, lacks Baikai identity, and the regular login path lacks state validation. Preserve it for compatibility, but do not copy its architecture.
+
+Refresh concurrency needs an explicit policy. In-memory single-flight alone would not cover multiple Node workers.
+
+Spotify authorization can require re-consent. The current scope string contains a duplicate and should become a documented canonical set. Current Spotify scopes should be verified when tools are added. Spotify scopes.
+
+Playback storage remains separate. SQLite does not automatically replace .spotify-playback/. Migrating the buffer playlist ID into SQLite could be considered later, but is unnecessary for the initial MCP migration and risks destabilizing proven behavior.
+
+The worktree is not clean. controllers/authController.test.js was untracked before inspection; do not overwrite or discard it. The test directories are also ignored in .gitignore, despite an existing tracked playback test.
+
+12. Recommended starting point
+The coding coach should begin with one deliberately small commit:
+Recheck the current MCP TypeScript Express serving documentation.
+Pin the current MCP server/Node adapter and Zod versions.
+Add mcp/createServer.js with only get_server_info.
+Add mcp/handler.js using stateless Streamable HTTP.
+Mount it at /mcp in index.mjs.
+Add one automated discovery/invocation test.
+Run all 35 existing tests.
+Do not touch Spotify, OAuth, SQLite, /taste-profile, OpenAPI, or the legacy Action manifest in that first commit.
+The milestone is complete only when MCP Inspector can list and invoke the trivial tool and all current REST/auth/playback tests still pass.
+
+
+11:39 AM
