@@ -2,36 +2,8 @@ import * as z from 'zod/v4'
 
 import { searchTracks as searchTracksService, searchAlbums as searchAlbumService} from '../../services/spotifyCatalogService.js'
 import { formatMcpJsonResponse, formatMcpReturnError, getMcpAnnotations } from '../utilities.js'
+import { searchAlbumsResultSchema, catalogSearchInputSchema, searchTracksResultSchema } from '../schemas/catalogSchemas.js'
 
-const trackMatchSchema = z.object({
-  title: z.string(),
-  artist: z.string(),
-  album: z.string(),
-  uri: z.string(),
-  popularity: z.number(),
-  duration_ms: z.number(),
-})
-
-const searchTracksResultSchema = z.object({
-    query: z.string(),
-    matches: z.array(trackMatchSchema)
-})
-
-const albumMatchSchema = z.object({
-    name: z.string(),
-    artist: z.string(),
-    uri: z.string()
-})
-
-const searchAlbumsResultSchema = z.object({
-    query: z.string(),
-    matches: z.array(albumMatchSchema)
-})
-
-const catalogSearchInputSchema = z.object({
-    query: z.string().min(1),
-    limit: z.number().int().min(1).max(10).optional()
-}).strict()
 
 
 const registerCatalogSearchToool = (server, {name, title, description, outputSchema, searchService, failureMessage, getSpotifyHeaders}) => {
@@ -39,7 +11,7 @@ const registerCatalogSearchToool = (server, {name, title, description, outputSch
         name, 
         {
             title, description, inputSchema: catalogSearchInputSchema, outputSchema,
-            ...getMcpAnnotations()
+            annotations: getMcpAnnotations()
         },
         async ({query, limit}) => {
             try {

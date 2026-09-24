@@ -18,11 +18,16 @@ export const formatMcpJsonResponse = (result) => {
         }
 }
 
-export const getMcpAnnotations = (readOnlyHint = true, openWorldHint = true) => {
-    return {
-        annotations: {
-            readOnlyHint,
-            openWorldHint
-        }
-    }
+export const getMcpAnnotations = ({
+  readOnlyHint = true,
+  destructiveHint,
+  idempotentHint,
+  openWorldHint = true,
+} = {}) => {
+  return {
+    readOnlyHint,
+    ...(destructiveHint !== undefined && { destructiveHint }),
+    ...(idempotentHint !== undefined && { idempotentHint }),
+    openWorldHint,
+  }
 }

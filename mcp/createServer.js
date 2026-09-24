@@ -3,6 +3,7 @@ import { registerServerInfoTool } from "./tools/serverInfo.js";
 import { getDevSpotifyHeaders } from './devSpotifyCredentials.js'
 import { registerCatalogTools } from './tools/catalog.js'
 import { registerLibraryTools } from "./tools/library.js";
+import { registerPlaylistTools } from "./tools/playlists.js";
 
 export const createServer = () => {
     const server = new McpServer({
@@ -14,6 +15,9 @@ export const createServer = () => {
         getSpotifyHeaders: getDevSpotifyHeaders,
     })
     registerLibraryTools(server, {
+        getSpotifyHeaders: getDevSpotifyHeaders,
+    })
+    registerPlaylistTools(server, {
         getSpotifyHeaders: getDevSpotifyHeaders,
     })
     return server

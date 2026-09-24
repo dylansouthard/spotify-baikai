@@ -23,6 +23,8 @@ export function breakDownSavedAlbum(item) {
   }
 }
 
+export const breakDownPlaylist = (playlist) => ({ id: playlist.id, name: playlist.name })
+
 export const breakDownTrack = (track, allArtists = true) => ({ title: track.name, artist: allArtists ? joinArtists(track.artists) : getFirstArtist(track.artists)})
 
 export function sampleItems(total, initialOffset, targetCount = 90, phases = 3, maxLimitPerReq = 50) {

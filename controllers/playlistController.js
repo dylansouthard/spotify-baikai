@@ -3,21 +3,18 @@ import axios from 'axios'
 import { throwError } from '../util/conveniences.js'
 import { ERROR_TYPE } from '../constants/errorsType.js'
 import { API_CONST, getBearerToken } from '../constants/apiConstants.js'
+import { 
+  getPlaylists as getPlaylistsService,
+  createPlaylist as createPlaylistService,
+  addTracksToPlaylist as addTracksToPlaylistService
+} from '../services/spotifyPlaylistService.js'
 
 export const createPlaylist = asyncHandler(async (req, res) => {
   try {
     const { name, description } = req.body
 
-    const user = await axios.get(`${API_CONST.SF_API_BASE}me`, { headers: getBearerToken(req) })
-
-    const userID = user.data.id
-
-    const playlist = await axios.post(
-      `${API_CONST.SF_API_BASE}users/${userID}/playlists`,
-      { name, description, public: false },
-      { headers: getBearerToken(req) }
-    )
-    res.json({ playlistId: playlist.data.id, url: playlist.data.external_urls.spotify })
+    const playlistData = await createPlaylistService({name, description, headers: getBearerToken(req)})
+    res.json(playlistData)
   } catch (e) {
     console.log(e)
     throwError(ERROR_TYPE.CREATE_PLAYLIST, res, e.response?.data?.error?.message)
@@ -28,39 +25,18 @@ export const addTracksToPlaylist = asyncHandler(async (req, res) => {
   try {
     const { id: playlistId } = req.params;
     const { uris } = req.body;
-
-    const response = await axios.post(
-      `${API_CONST.SF_API_BASE}playlists/${playlistId}/items`,
-      { uris },
-      { headers: getBearerToken(req) }
-    );
-
-    if (response.status !== 201) {
-      throw new Error(`Unexpected Spotify status: ${response.status}`);
-    }
-
-    res.status(201).send(
-      `Tracks added\nsnapshot_id: ${response.data.snapshot_id}`
-    );
+    const result = await addTracksToPlaylistService({playlistId, uris, headers:getBearerToken(req)})
+    return res.status(201).json(result)
   } catch (e) {
-    throwError(
-      ERROR_TYPE.ADD_TRACKS,
-      res,
-      e.response?.data?.error?.message || e.message
-    );
+    throwError(ERROR_TYPE.ADD_TRACKS, res, e.response?.data?.error?.message || e.message);
   }
 });
 
 export const getPlaylists = asyncHandler(async (req, res) => {
   try {
     const { limit = 50, offset = 0 } = req.query
-    const response = await axios.get(`${API_CONST.SF_API_BASE}me/playlists`, {
-      headers: getBearerToken(req),
-      params: { limit, offset },
-    })
-    const { items, href, next, total } = response.data
-    const playlists = items.map((p) => breakDownPlaylist(p))
-    res.json({ href, next, total, playlists })
+    const playlistData = await getPlaylistsService({limit, offset, headers:getBearerToken(req)})
+    res.json(playlistData)
   } catch (e) {
     console.error(e)
     throwError(ERROR_TYPE.GET_PLAYLISTS, res, e.response?.data?.error?.message)

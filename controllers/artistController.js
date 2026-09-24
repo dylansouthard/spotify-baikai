@@ -1,19 +1,14 @@
 import asyncHandler from 'express-async-handler'
-import qs from 'querystring'
-import axios from 'axios'
 import { throwError } from '../util/conveniences.js'
 import { ERROR_TYPE } from '../constants/errorsType.js'
-import { API_CONST, getBearerToken } from '../constants/apiConstants.js'
-import { fetchTopItems } from '../services/tasteService.js'
+import { getBearerToken } from '../constants/apiConstants.js'
+
+import { getTopArtists as getTopArtistsService} from '../services/spotifyLibraryService.js'
 
 export const getTopArtists = asyncHandler(async (req, res) => {
-  const { time_range = 'long_term', limit = 50, offset = 0 } = req.query
+  const { time_range:timeRange = 'long_term', limit = 50, offset = 0 } = req.query
   try {
-    const response = await axios.get(`${API_CONST.SF_API_BASE}me/top/artists`, {
-      headers: getBearerToken(req),
-      params: { time_range, limit, offset },
-    })
-    const artists = response.data.items.map((a) => a.name)
+    const artists = await getTopArtistsService({timeRange, limit, headers: getBearerToken(req)})
     res.json({ artists })
   } catch (e) {
     console.log(e)
