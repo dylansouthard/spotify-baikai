@@ -11,6 +11,7 @@ import { runMigrations } from './db/migrate.js'
 import { validateTokenCryptoConfig } from './services/tokenCryptoService.js'
 import { requireMcpAuth } from './middleware/mcpAuth.js'
 import { hostHeaderValidation, originValidation } from '@modelcontextprotocol/express'
+import { appendFileSync } from 'fs'
 dotenv.config()
 
 const app = express()
@@ -25,20 +26,32 @@ app.use(handleMcpJsonParseError)
 
 app.use('/mcp', (req, res, next) => {
 
-    console.log('MCP INCOMING', {
-        method: req.method,
-        originalUrl: req.originalUrl,
-        url: req.url,
-        host: req.headers.host,
-        forwardedProto: req.headers['x-forwarded-proto'],
-        contentType: req.headers['content-type'],
-        protocolVersion: req.headers['mcp-protocol-version'],
-        mcpMethod: req.headers['mcp-method'],
-        bodyMethod: req.body?.method,
-        hasMeta: Boolean(req.body?.params?._meta),
-    })
+  const entry = {
+    time: new Date().toISOString(),
+    method: req.method,
+    originalUrl: req.originalUrl,
+    url: req.url,
+    host: req.headers.host,
+    forwardedProto:
+      req.headers['x-forwarded-proto'],
+    contentType:
+      req.headers['content-type'],
+    protocolVersion:
+      req.headers['mcp-protocol-version'],
+    mcpMethod:
+      req.headers['mcp-method'],
+    bodyMethod:
+      req.body?.method,
+    hasMeta:
+      Boolean(req.body?.params?._meta),
+  }
 
-    next()
+  appendFileSync(
+    new URL('./mcp-debug.log', import.meta.url),
+    `${JSON.stringify(entry, null, 2)}\n`
+  )
+
+  next()
 
 })
 app.all(
