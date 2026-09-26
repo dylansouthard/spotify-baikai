@@ -10,7 +10,7 @@ import { handleMcpRequest, handleMcpJsonParseError } from './mcp/handler.js'
 import { runMigrations } from './db/migrate.js'
 import { validateTokenCryptoConfig } from './services/tokenCryptoService.js'
 import { requireMcpAuth } from './middleware/mcpAuth.js'
-
+import { hostHeaderValidation, originValidation } from '@modelcontextprotocol/express'
 dotenv.config()
 
 const app = express()
@@ -23,7 +23,21 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(handleMcpJsonParseError)
 
-app.all('/mcp', localhostHostValidation(), localhostOriginValidation(), requireMcpAuth, handleMcpRequest)
+app.all(
+  '/mcp',
+  hostHeaderValidation([
+    'spotify-baikai.dylansouthard.info',
+    'localhost',
+    '127.0.0.1',
+  ]),
+  originValidation([
+    'spotify-baikai.dylansouthard.info',
+    'localhost',
+    '127.0.0.1',
+  ]),
+  requireMcpAuth,
+  handleMcpRequest
+)
 
 import path from 'path'
 import { fileURLToPath } from 'url'
