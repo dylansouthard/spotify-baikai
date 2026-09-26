@@ -9,10 +9,12 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@auth0/auth0-api-js": "1.6.1",
     "@modelcontextprotocol/express": "2.0.0",
     "@modelcontextprotocol/node": "2.0.0",
     "@modelcontextprotocol/server": "2.0.0",
     "axios": "^1.10.0",
+    "better-sqlite3": "13.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",

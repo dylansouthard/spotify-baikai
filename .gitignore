@@ -30,3 +30,7 @@ docs/
 test/
 tests/
 tmp/*
+
+data/*.sqlite
+data/*.sqlite-wal
+data/*.sqlite-shm

@@ -34,4 +34,14 @@ export const ERROR_TYPE = {
     message: 'Token refresh failed',
     status: 400,
   },
+  AUTH_FAILED: {
+    type: 'AUTH_FAILED',
+    message: 'Authorization failed',
+    status: 400
+  },
+  MISSING_PARAMS: {
+    type:'MISSING_PARAMS',
+    message: 'Missing required parameters',
+    status: 400
+  }
 }

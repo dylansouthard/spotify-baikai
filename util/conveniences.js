@@ -99,3 +99,8 @@ export function sampleArray(arr, max = 100) {
 
   return shuffled.slice(0, max);
 }
+
+export const hasScope = (claims, requiredScope) => {
+    const scopes = claims.scope?.split(/\s+/).filter(Boolean)
+    return scopes.includes(requiredScope)
+}

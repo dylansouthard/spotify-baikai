@@ -1,5 +1,5 @@
 export const formatMcpReturnError = (error, failureMessage) => {
-    const message = error.response?.data?.error?.message || failureMessage
+    const message = error.response?.data?.error?.message || error.message || failureMessage
     return {
         content: [{type: 'text', text: message}],
         isError:true

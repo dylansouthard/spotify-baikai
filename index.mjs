@@ -7,6 +7,9 @@ import errorHandler from './middleware/errorHandler.js'
 import tokenOpenAIDiagnostics from './middleware/tokenOpenAIDiagnostics.js'
 import { localhostHostValidation, localhostOriginValidation } from '@modelcontextprotocol/express'
 import { handleMcpRequest, handleMcpJsonParseError } from './mcp/handler.js'
+import { runMigrations } from './db/migrate.js'
+import { validateTokenCryptoConfig } from './services/tokenCryptoService.js'
+import { requireMcpAuth } from './middleware/mcpAuth.js'
 
 dotenv.config()
 
@@ -20,7 +23,7 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(handleMcpJsonParseError)
 
-app.all('/mcp', localhostHostValidation(), localhostOriginValidation(), handleMcpRequest)
+app.all('/mcp', localhostHostValidation(), localhostOriginValidation(), requireMcpAuth, handleMcpRequest)
 
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -58,6 +61,15 @@ app.use('/playlists', playlistRoutes)
 app.use('/albums', albumRoutes)
 app.use('/taste-profile', tasteProfileRoutes)
 app.use(errorHandler)
+
+validateTokenCryptoConfig()
+const migrations = runMigrations()
+
+if (migrations.length) {
+  console.log(
+    `Applied database migrations: ${migrations.join(', ')}`
+  )
+}
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`)

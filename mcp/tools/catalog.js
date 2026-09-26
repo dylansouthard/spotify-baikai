@@ -1,5 +1,3 @@
-import * as z from 'zod/v4'
-
 import { searchTracks as searchTracksService, searchAlbums as searchAlbumService} from '../../services/spotifyCatalogService.js'
 import { formatMcpJsonResponse, formatMcpReturnError, getMcpAnnotations } from '../utilities.js'
 import { searchAlbumsResultSchema, catalogSearchInputSchema, searchTracksResultSchema } from '../schemas/catalogSchemas.js'
@@ -20,6 +18,7 @@ const registerCatalogSearchToool = (server, {name, title, description, outputSch
                 const result = {query, matches}
                 return formatMcpJsonResponse(result)
             } catch(e) {
+                console.error('catalog MCP tool failed:', e)
                 return formatMcpReturnError(e, failureMessage)
             }
         } 
@@ -52,44 +51,4 @@ export const registerCatalogTools = (server, {getSpotifyHeaders}) => {
             getSpotifyHeaders: getSpotifyHeaders
         }
     )
-    // server.registerTool(
-    //     'search_tracks',
-    //     {
-    //         title: 'SearchSpotify tracks',
-    //         description: 'Search the Spotify catalog for tracks matching a text query and return track metadata and Spotify URIs.',
-    //         inputSchema: z.object({
-    //             query: z.string().min(1),
-    //             limit: z.number().int().min(1).max(10).optional()
-    //         }).strict(),
-    //         outputSchema: searchTracksResultSchema,
-    //         annotations: {
-    //             readOnlyHint: true,
-    //             openWorldHint: true,
-    //         }
-    //     },
-    //     async({ query, limit }) => {
-    //         try {
-    //             const headers = await getSpotifyHeaders()
-    //             const matches = await searchTracksService({query, limit, headers})
-    //             const result = {query, matches}
-    //             return {
-    //                 content: [
-    //                     {type: 'text', text: JSON.stringify(result)}
-    //                 ], 
-    //                 structuredContent: result,
-    //             }
-    //         } catch (e) {
-    //             const message = e.response?.data?.error?.message || 'Failed to search Spotify tracks'
-    //             return {
-    //                 content: [
-    //                     {
-    //                         type: 'text',
-    //                         text: message
-    //                     }
-    //                 ],
-    //                 isError: true,
-    //             }
-    //         }
-    //     }
-    // )
 }
