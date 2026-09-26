@@ -6,7 +6,7 @@ import { albumRoutes, artistRoutes, authRoutes, playerRoutes, playlistRoutes, tr
 import errorHandler from './middleware/errorHandler.js'
 import tokenOpenAIDiagnostics from './middleware/tokenOpenAIDiagnostics.js'
 import { localhostHostValidation, localhostOriginValidation } from '@modelcontextprotocol/express'
-import { handleMcpRequest, handleMcpJsonParseError } from './mcp/handler.js'
+import { handleMcpRequest, handleMcpJsonParseError } from './mcpServer/handler.js'
 import { runMigrations } from './db/migrate.js'
 import { validateTokenCryptoConfig } from './services/tokenCryptoService.js'
 import { requireMcpAuth } from './middleware/mcpAuth.js'
