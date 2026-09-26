@@ -1,5 +1,5 @@
 import { searchTracks as searchTracksService, searchAlbums as searchAlbumService} from '../../services/spotifyCatalogService.js'
-import { formatMcpJsonResponse, formatMcpReturnError, getMcpAnnotations } from '../utilities.js'
+import { formatMcpJsonResponse, formatMcpReturnError, getMcpAnnotations, getMcpSecurityMeta } from '../utilities.js'
 import { searchAlbumsResultSchema, catalogSearchInputSchema, searchTracksResultSchema } from '../schemas/catalogSchemas.js'
 
 
@@ -9,7 +9,7 @@ const registerCatalogSearchToool = (server, {name, title, description, outputSch
         name, 
         {
             title, description, inputSchema: catalogSearchInputSchema, outputSchema,
-            annotations: getMcpAnnotations()
+            annotations: getMcpAnnotations(), _meta: getMcpSecurityMeta()
         },
         async ({query, limit}) => {
             try {

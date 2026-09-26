@@ -31,3 +31,14 @@ export const getMcpAnnotations = ({
     openWorldHint,
   }
 }
+
+export const getMcpSecurityMeta = () => ({
+  securitySchemes: [
+    {
+      type: 'oauth2',
+      scopes: [
+        'mcp:access',
+      ],
+    },
+  ],
+})

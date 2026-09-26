@@ -5,7 +5,7 @@ import {
     getTopTracks as getTopTracksService,
     getTopArtists as getTopArtistsService
 } from '../../services/spotifyLibraryService.js'
-import { getMcpAnnotations, formatMcpJsonResponse, formatMcpReturnError } from '../utilities.js'
+import { getMcpAnnotations, formatMcpJsonResponse, formatMcpReturnError, getMcpSecurityMeta } from '../utilities.js'
 import { defaultLimit, defaultOffset } from '../schemas/conveniences.js'
 import { topTracksResultSchema, likedTracksResultSchema, topItemsInputSchema, topArtistsResultsSchema } from '../schemas/librarySchemas.js'
 
@@ -22,7 +22,8 @@ export const registerLibraryTools = (server, {getSpotifyHeaders}) => {
             }
             ).strict(),
             outputSchema:likedTracksResultSchema,
-            annotations: getMcpAnnotations()
+            annotations: getMcpAnnotations(),
+            _meta: getMcpSecurityMeta(),
         },
         async ({limit, offset}) => {
             try {
@@ -45,6 +46,7 @@ export const registerLibraryTools = (server, {getSpotifyHeaders}) => {
             inputSchema: topItemsInputSchema,
             outputSchema: topTracksResultSchema,
             annotations: getMcpAnnotations(),
+            _meta: getMcpSecurityMeta(),
         },
         async ({ time_range, limit, offset }) => {
             try {
@@ -68,6 +70,7 @@ export const registerLibraryTools = (server, {getSpotifyHeaders}) => {
             inputSchema: topItemsInputSchema,
             outputSchema: topArtistsResultsSchema,
             annotations: getMcpAnnotations(),
+            _meta: getMcpSecurityMeta(),
         },
         async ({ time_range, limit, offset }) => {
             try {

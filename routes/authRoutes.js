@@ -1,6 +1,6 @@
 import express from 'express'
 
-import { login, loginOpenAI, tokenOpenAI, callback, refreshToken, spotifyLinkCallback } from '../controllers/authController.js'
+import { login, loginOpenAI, tokenOpenAI, callback, refreshToken, spotifyLinkCallback, protectedResourceMetadata } from '../controllers/authController.js'
 
 const router = express.Router()
 
@@ -15,5 +15,7 @@ router.post('/token-openai', tokenOpenAI)
 router.get('/login-openai', loginOpenAI)
 
 router.get('/spotify/callback', spotifyLinkCallback)
+
+router.get('/.well-known/oauth-protected-resource', protectedResourceMetadata)
 
 export default router

@@ -32,6 +32,16 @@ const getSpotifyLinks = () => {
   return spotifyLinks
 }
 
+export const protectedResourceMetadata = (req, res) => {
+  const resource = process.env.AUTH0_AUDIENCE
+  const authorizationServer = `https://${process.env.AUTH0_DOMAIN}/`
+  res.json({
+    resource,
+    authorization_servers: [authorizationServer],
+    scopes_supported: ['mcp:access']
+  })
+}
+
 export const spotifyLinkCallback = asyncHandler(async (req, res) => {
   const {code, state, error} = req.query
   console.log(`error is ${error}`);

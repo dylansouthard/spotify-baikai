@@ -6,7 +6,7 @@ import {
     addTracksToPlaylistInputSchema,
     addTracksToPlaylistResultSchema
 } from "../schemas/playlistSchemas.js";
-import { formatMcpJsonResponse, formatMcpReturnError, getMcpAnnotations } from "../utilities.js";
+import { formatMcpJsonResponse, formatMcpReturnError, getMcpAnnotations, getMcpSecurityMeta } from "../utilities.js";
 import { 
     getPlaylists as getPlaylistsService,
     createPlaylist as createPlaylistService,
@@ -22,7 +22,8 @@ export const registerPlaylistTools = (server, {getSpotifyHeaders}) => {
             description: 'Return playlists owned or followed by the current Spotify user, with pagination information.',
             inputSchema: listPlaylistsInputSchema,
             outputSchema: listPlaylistResultSchema,
-            annotations: getMcpAnnotations()
+            annotations: getMcpAnnotations(),
+            _meta: getMcpSecurityMeta(),
         },
         async ({limit, offset}) => {
             try {
@@ -42,10 +43,12 @@ export const registerPlaylistTools = (server, {getSpotifyHeaders}) => {
             description: 'Create a new private playlist for the current Spotify user.',
             inputSchema: createPlaylistInputSchema,
             outputSchema: createPlaylistResultSchema,
+            _meta: getMcpSecurityMeta(),
             annotations: getMcpAnnotations({
             readOnlyHint: false,
             destructiveHint: false,
             idempotentHint: false,
+            
             }),
         },
         async ({ name, description }) => {
@@ -69,6 +72,7 @@ export const registerPlaylistTools = (server, {getSpotifyHeaders}) => {
             'Add one or more Spotify track URIs to an existing playlist.',
             inputSchema: addTracksToPlaylistInputSchema,
             outputSchema: addTracksToPlaylistResultSchema,
+            _meta: getMcpSecurityMeta(),
             annotations: getMcpAnnotations({
             readOnlyHint: false,
             destructiveHint: false,

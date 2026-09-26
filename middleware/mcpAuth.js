@@ -3,12 +3,12 @@ import { authenticateBaikaiUser } from '../services/baikaiAuthService.js'
 export const requireMcpAuth = async (req, res, next) => {
     const authorization = req.get('authorization')
     if (!authorization || !authorization.startsWith('Bearer ')) {
-        return res.status(401).json({error: 'unauthorized'})
+        return sendUnauthorized(res)
     }
 
     const accessToken = authorization.slice('Bearer '.length).trim()
     if (!accessToken) {
-        return res.status(401).json({error: 'unauthorized'})
+        return sendUnauthorized(res)
     }
 
     try {
@@ -24,6 +24,16 @@ export const requireMcpAuth = async (req, res, next) => {
         next()
     } catch (e) {
         console.error(`MCP authentication failed`, e.message)
-        return res.status(401).json({error: 'unauthorized'})
+        return sendUnauthorized(res)
     }
+}
+
+const sendUnauthorized = (res) => {
+    const resourceMetadata = `${process.env.AUTH0_AUDIENCE}/.well-known/oauth-protected-resource`
+    res.set(
+        'WWW-Authenticate',
+        `Bearer resource_metadata="${resourceMetadata}", scope="mcp:access"`
+  )
+
+  return res.status(401).json({error:'unauthorized'})
 }
