@@ -23,7 +23,7 @@ export const registerLibraryTools = (server, {getSpotifyHeaders}) => {
             ).strict(),
             outputSchema:likedTracksResultSchema,
             annotations: getMcpAnnotations(),
-            _meta: getMcpSecurityMeta(),
+            ...getMcpSecurityMeta(),
         },
         async ({limit, offset}) => {
             try {
@@ -46,7 +46,7 @@ export const registerLibraryTools = (server, {getSpotifyHeaders}) => {
             inputSchema: topItemsInputSchema,
             outputSchema: topTracksResultSchema,
             annotations: getMcpAnnotations(),
-            _meta: getMcpSecurityMeta(),
+            ...getMcpSecurityMeta(),
         },
         async ({ time_range, limit, offset }) => {
             try {
@@ -70,7 +70,7 @@ export const registerLibraryTools = (server, {getSpotifyHeaders}) => {
             inputSchema: topItemsInputSchema,
             outputSchema: topArtistsResultsSchema,
             annotations: getMcpAnnotations(),
-            _meta: getMcpSecurityMeta(),
+            ...getMcpSecurityMeta(),
         },
         async ({ time_range, limit, offset }) => {
             try {

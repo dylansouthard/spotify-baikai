@@ -9,7 +9,7 @@ const registerCatalogSearchToool = (server, {name, title, description, outputSch
         name, 
         {
             title, description, inputSchema: catalogSearchInputSchema, outputSchema,
-            annotations: getMcpAnnotations(), _meta: getMcpSecurityMeta()
+            annotations: getMcpAnnotations(), ...getMcpSecurityMeta()
         },
         async ({query, limit}) => {
             try {

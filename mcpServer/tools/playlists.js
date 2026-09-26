@@ -23,7 +23,7 @@ export const registerPlaylistTools = (server, {getSpotifyHeaders}) => {
             inputSchema: listPlaylistsInputSchema,
             outputSchema: listPlaylistResultSchema,
             annotations: getMcpAnnotations(),
-            _meta: getMcpSecurityMeta(),
+            ...getMcpSecurityMeta(),
         },
         async ({limit, offset}) => {
             try {
@@ -43,7 +43,7 @@ export const registerPlaylistTools = (server, {getSpotifyHeaders}) => {
             description: 'Create a new private playlist for the current Spotify user.',
             inputSchema: createPlaylistInputSchema,
             outputSchema: createPlaylistResultSchema,
-            _meta: getMcpSecurityMeta(),
+            ...getMcpSecurityMeta(),
             annotations: getMcpAnnotations({
             readOnlyHint: false,
             destructiveHint: false,
@@ -72,7 +72,7 @@ export const registerPlaylistTools = (server, {getSpotifyHeaders}) => {
             'Add one or more Spotify track URIs to an existing playlist.',
             inputSchema: addTracksToPlaylistInputSchema,
             outputSchema: addTracksToPlaylistResultSchema,
-            _meta: getMcpSecurityMeta(),
+            ...getMcpSecurityMeta(),
             annotations: getMcpAnnotations({
             readOnlyHint: false,
             destructiveHint: false,
