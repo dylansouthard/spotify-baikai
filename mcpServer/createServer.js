@@ -66,7 +66,7 @@ const getSpotifyLinks = () => {
 
 export const createServer = ({authInfo} = {}) => {
     const userId = authInfo?.extra?.userId
-    // if (!userId) throw new Error('Authenticated Baikai user is missing')
+    if (!userId) throw new Error('Authenticated Baikai user is missing')
     const getSpotifyHeaders = async () => {
         try {
             return await getSpotifyCredentials().getHeaders(userId)

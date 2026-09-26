@@ -120,7 +120,7 @@ app.all(
     'localhost',
     '127.0.0.1',
   ]),
-  // requireMcpAuth,
+  requireMcpAuth,
   handleMcpRequest
 )
 
