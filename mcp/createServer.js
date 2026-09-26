@@ -13,22 +13,53 @@ import { createSpotifyLinkService } from '../services/spotifyLinkService.js'
 
 
 
-const connections = createSpotifyConnectionRepository(db)
+let connections
 
-let spotifyCredentials 
-const getSpotifyCredentials = () => {
-    if (spotifyCredentials) return spotifyCredentials
-    spotifyCredentials = createSpotifyCredentialService({connections})
-    return spotifyCredentials
+const getConnections = () => {
+
+    if (connections) return connections
+
+    connections = createSpotifyConnectionRepository(db)
+
+    return connections
+
 }
 
-const stateRepository = createSpotifyOAuthStateRepository(db)
-const states = createSpotifyOAuthStateService({states: stateRepository})
+let spotifyCredentials
+
+const getSpotifyCredentials = () => {
+
+    if (spotifyCredentials) return spotifyCredentials
+
+    spotifyCredentials = createSpotifyCredentialService({
+        connections: getConnections()
+    })
+
+    return spotifyCredentials
+
+}
+
+let states
+
+const getStates = () => {
+
+    if (states) return states
+
+    const stateRepository =
+        createSpotifyOAuthStateRepository(db)
+
+    states = createSpotifyOAuthStateService({
+        states: stateRepository
+    })
+
+    return states
+
+}
 
 let spotifyLinks
 const getSpotifyLinks = () => {
     if (spotifyLinks) return spotifyLinks
-    spotifyLinks = createSpotifyLinkService({states, connections, redirectUri: process.env.SPOTIFY_LINK_REDIRECT_URI})
+    spotifyLinks = createSpotifyLinkService({states:getStates(), connections:getConnections(), redirectUri: process.env.SPOTIFY_LINK_REDIRECT_URI})
     return spotifyLinks
 }
 

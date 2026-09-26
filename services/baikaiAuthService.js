@@ -4,11 +4,21 @@ import { createUserRepository } from '../repositories/userRepository.js'
 import { verifyBaikaiAccessToken } from './auth0Service.js'
 import { hasScope } from '../util/conveniences.js'
 
-const users = createUserRepository(db)
+let users
+
+const getUsers = () => {
+
+    if (users) return users
+
+    users = createUserRepository(db)
+
+    return users
+
+}
 
 export const authenticateBaikaiUser = async (accessToken) => {
     const claims = await verifyBaikaiAccessToken(accessToken)
     if (!hasScope(claims, 'mcp:access')) throw new Error('Missing required scope: mcp:access')
-    const user = users.findOrCreateByAuthIdentity({authIssuer:claims.iss, authSubject:claims.sub})
+    const user = getUsers().findOrCreateByAuthIdentity({authIssuer:claims.iss, authSubject:claims.sub})
     return {user, claims}
 }
