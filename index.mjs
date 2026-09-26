@@ -26,6 +26,60 @@ app.use(handleMcpJsonParseError)
 
 app.use('/mcp', (req, res, next) => {
 
+  const startedAt = Date.now()
+
+  res.on('finish', () => {
+
+    const entry = {
+      time: new Date().toISOString(),
+
+      method: req.method,
+      originalUrl: req.originalUrl,
+
+      userAgent:
+        req.headers['user-agent'],
+
+      contentType:
+        req.headers['content-type'],
+
+      accept:
+        req.headers.accept,
+
+      protocolVersion:
+        req.headers['mcp-protocol-version'],
+
+      mcpMethod:
+        req.headers['mcp-method'],
+
+      hasAuthorization:
+        Boolean(req.headers.authorization),
+
+      bodyMethod:
+        req.body?.method,
+
+      hasMeta:
+        Boolean(req.body?.params?._meta),
+
+      status:
+        res.statusCode,
+
+      durationMs:
+        Date.now() - startedAt,
+    }
+
+    appendFileSync(
+      new URL('./mcp-debug.log', import.meta.url),
+      `${JSON.stringify(entry)}\n`
+    )
+
+  })
+
+  next()
+
+})
+
+app.use('/mcp', (req, res, next) => {
+
   const entry = {
     time: new Date().toISOString(),
     method: req.method,
