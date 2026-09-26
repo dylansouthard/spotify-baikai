@@ -10,7 +10,19 @@ export const mcpHttpHandler = createMcpHandler(() => {
 
     server.registerTool(
         'ping',
-        { description: 'Return pong' },
+        {
+            title: 'Ping',
+            description: 'Returns pong to verify the MCP connection.',
+            inputSchema: {},
+            annotations: {
+                readOnlyHint: true,
+                destructiveHint: false,
+                openWorldHint: false,
+            },
+            _meta: {
+                securitySchemes: [{ type: 'noauth' }],
+            },
+        },
         async () => ({
             content: [{ type: 'text', text: 'pong' }],
         }),
