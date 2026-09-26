@@ -1,35 +1,8 @@
-import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
+import { createMcpHandler } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
+import { createServer } from "./createServer.js";
 
-// Temporary discovery test: expose only ping to isolate catalog compatibility.
-export const mcpHttpHandler = createMcpHandler(() => {
-    const server = new McpServer({
-        name: 'spotify-baikai',
-        version: '1.0.0',
-    })
-
-    server.registerTool(
-        'ping',
-        {
-            title: 'Ping',
-            description: 'Returns pong to verify the MCP connection.',
-            inputSchema: {},
-            annotations: {
-                readOnlyHint: true,
-                destructiveHint: false,
-                openWorldHint: false,
-            },
-            _meta: {
-                securitySchemes: [{ type: 'noauth' }],
-            },
-        },
-        async () => ({
-            content: [{ type: 'text', text: 'pong' }],
-        }),
-    )
-
-    return server
-}, {
+export const mcpHttpHandler = createMcpHandler(createServer, {
     legacy: 'stateless'
 })
 
