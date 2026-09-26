@@ -1,8 +1,23 @@
-import { createMcpHandler } from "@modelcontextprotocol/server";
+import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
-import { createServer } from "./createServer.js";
 
-export const mcpHttpHandler = createMcpHandler(createServer, {
+// Temporary discovery test: expose only ping to isolate catalog compatibility.
+export const mcpHttpHandler = createMcpHandler(() => {
+    const server = new McpServer({
+        name: 'spotify-baikai',
+        version: '1.0.0',
+    })
+
+    server.registerTool(
+        'ping',
+        { description: 'Return pong' },
+        async () => ({
+            content: [{ type: 'text', text: 'pong' }],
+        }),
+    )
+
+    return server
+}, {
     legacy: 'stateless'
 })
 
