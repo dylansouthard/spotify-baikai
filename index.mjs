@@ -23,6 +23,24 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use(handleMcpJsonParseError)
 
+app.use('/mcp', (req, res, next) => {
+
+    console.log('MCP INCOMING', {
+        method: req.method,
+        originalUrl: req.originalUrl,
+        url: req.url,
+        host: req.headers.host,
+        forwardedProto: req.headers['x-forwarded-proto'],
+        contentType: req.headers['content-type'],
+        protocolVersion: req.headers['mcp-protocol-version'],
+        mcpMethod: req.headers['mcp-method'],
+        bodyMethod: req.body?.method,
+        hasMeta: Boolean(req.body?.params?._meta),
+    })
+
+    next()
+
+})
 app.all(
   '/mcp',
   hostHeaderValidation([
