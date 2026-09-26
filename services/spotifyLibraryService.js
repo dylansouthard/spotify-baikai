@@ -23,6 +23,6 @@ export const getTopTracks = async ({timeRange, limit, offset, headers}) => {
 }
 
 export const getTopArtists = async ({timeRange, limit, offset, headers}) => {
-    const items = await fetchTopItems({type:'tracks', timeRange, limit, offset, headers})
+    const items = await fetchTopItems({type:'artists', timeRange, limit, offset, headers})
     return items.map((a) => a.name)
 }
