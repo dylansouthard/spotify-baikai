@@ -18,7 +18,7 @@ export const requireMcpAuth = async (req, res, next) => {
             clientId: claims.client_id,
             scopes: claims.scope?.split(/\s+/).filter(Boolean),
             expiresAt: claims.exp,
-            resource: new URL(process.env.AUTH0_AUDIENCE),
+            resource: new URL(process.env.MCP_RESOURCE_URI ?? process.env.AUTH0_AUDIENCE),
             extra:{userId: user.id}
         }
         next()
@@ -29,10 +29,13 @@ export const requireMcpAuth = async (req, res, next) => {
 }
 
 const sendUnauthorized = (res) => {
-    const resourceMetadata = `${process.env.AUTH0_AUDIENCE}/.well-known/oauth-protected-resource`
+    const resource = process.env.MCP_RESOURCE_URI ?? process.env.AUTH0_AUDIENCE
+
+    const resourceMetadataUrl = new URL('/.well-known/oauth-protected-resource', resource).toString()
+    // const resourceMetadata = `${process.env.AUTH0_AUDIENCE}/.well-known/oauth-protected-resource`
     res.set(
         'WWW-Authenticate',
-        `Bearer resource_metadata="${resourceMetadata}", scope="mcp:access"`
+        `Bearer resource_metadata="${resourceMetadataUrl}", scope="mcp:access"`
   )
 
   return res.status(401).json({error:'unauthorized'})

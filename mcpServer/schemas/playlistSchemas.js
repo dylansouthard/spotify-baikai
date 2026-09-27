@@ -1,5 +1,6 @@
 import * as z from 'zod/v4'
 import { defaultLimit, defaultOffset } from './conveniences.js'
+import { paginatedResultsSchema, trackSchema} from './shared.js'
 
 export const listPlaylistsInputSchema = z.object({
     limit: defaultLimit,
@@ -11,9 +12,7 @@ export const playlistSummarySchema = z.object({
     name: z.string()
 })
 
-export const listPlaylistResultSchema = z.object({
-    total: z.number().int().min(0),
-    nextOffset: z.number().int().min(0).nullable(),
+export const listPlaylistResultSchema = paginatedResultsSchema.extend({
     playlists: z.array(playlistSummarySchema)
 })
 
@@ -23,12 +22,12 @@ export const createPlaylistInputSchema = z.object({
 }).strict()
 
 export const createPlaylistResultSchema = z.object({
-  playlistId: z.string(),
+  playlist_id: z.string(),
   url: z.string(),
 })
 
 export const addTracksToPlaylistInputSchema = z.object({
-  playlistId: z.string().min(1),
+  playlist_id: z.string().min(1),
   uris: z.array(
     z.string().regex(
       /^spotify:track:[A-Za-z0-9]{22}$/,
@@ -39,4 +38,17 @@ export const addTracksToPlaylistInputSchema = z.object({
 
 export const addTracksToPlaylistResultSchema = z.object({
   snapshotId: z.string(),
+})
+
+export const getPlaylistInputSchema = z.object({
+  playlist_id: z.string()
+}).strict()
+
+export const playlistResultSchema = z.object({
+  uri:z.string(),
+  playlist_id:z. string(),
+  description:z.string(),
+  name:z.string(),
+  total_items:z.number().int(),
+  tracks:z.array(trackSchema)
 })

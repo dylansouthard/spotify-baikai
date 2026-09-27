@@ -19,7 +19,7 @@ export function breakDownSavedAlbum(item) {
   return {
     name: item.album.name,
     artist: getFirstArtist(item.album.artists),
-    saved_at: new Date(item.added_at)
+    added_at: item.added_at
   }
 }
 
@@ -104,3 +104,25 @@ export const hasScope = (claims, requiredScope) => {
     const scopes = claims.scope?.split(/\s+/).filter(Boolean)
     return scopes.includes(requiredScope)
 }
+
+export const getNextOffset = (next, items, offset) => next ? Number(offset) + items.length : null
+
+export function divideSettledResults(results) {
+    return {
+        fulfilled: results.filter(r => r.status === 'fulfilled').map(f => f.value),
+        errors: results.filter(r => r.status !== 'fulfilled').map(r => r.reason?.response?.data?.error?.message ?? error?.message ?? 'Unknown error')
+    }
+}
+
+export const chunkArray = (array, size) => {
+
+    const chunks = []
+
+    for (let i = 0; i < array.length; i += size) {
+        chunks.push(array.slice(i, i + size))
+    }
+
+    return chunks
+}
+
+export const getErrorMessage = (error, fallback) => error.response?.data?.error?.message ?? error.response.message ?? fallback

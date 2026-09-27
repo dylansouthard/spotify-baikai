@@ -10,6 +10,8 @@ import { createSpotifyCredentialService, SPOTIFY_CONNECTION_ERROR } from "../ser
 import { createSpotifyOAuthStateRepository } from '../repositories/spotifyOAuthStateRepository.js'
 import { createSpotifyOAuthStateService } from "../services/spotifyOAuthStateService.js";
 import { createSpotifyLinkService } from '../services/spotifyLinkService.js'
+import { registerPlaybacktools } from "./tools/player.js";
+import { registerWorkflowTools } from "./tools/workflow.js";
 
 
 
@@ -86,6 +88,12 @@ export const createServer = ({authInfo} = {}) => {
     registerCatalogTools(server, { getSpotifyHeaders })
     registerLibraryTools(server, { getSpotifyHeaders })
     registerPlaylistTools(server, { getSpotifyHeaders })
+    registerPlaybacktools(server, { getSpotifyHeaders })
+    registerWorkflowTools(server, { getSpotifyHeaders })
     return server
 }
 
+// npx @modelcontextprotocol/inspector \
+//   --server-url http://127.0.0.1:3000/mcp \
+//   --transport http \
+//   --protocol-era modern

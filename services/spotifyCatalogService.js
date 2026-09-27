@@ -1,6 +1,6 @@
 import axios from "axios";
 import { API_CONST } from "../constants/apiConstants.js";
-import { joinArtists } from "../util/conveniences.js";
+import { chunkArray, divideSettledResults, joinArtists } from "../util/conveniences.js";
 
 export const searchTracks = async ({query, limit, headers}) => {
     const params = {
@@ -20,6 +20,30 @@ export const searchTracks = async ({query, limit, headers}) => {
     }))
 }
 
+export const searchMultipleTracks = async({queries, perQueryLimit = 5, headers}) => {
+    const MAX_CONCURRENT = 5
+
+    const allResults = []
+    const batches = chunkArray(queries, MAX_CONCURRENT)
+
+    for (const batch of batches) {
+        const batchResults = await Promise.allSettled(
+            batch.map(query => searchTracks({query, limit: perQueryLimit, headers}))
+        )
+        const dividedResults = batchResults.map(r => (
+            {
+                matches: r.status === 'fulfilled' ? r.value : [],
+                error: r.status !== 'fulfilled' ? r.reason?.response?.data?.error?.message ?? r.reason?.message ?? 'Unknown error' : null
+            }
+        ))
+        allResults.push(...dividedResults.map((res, i) => ({
+            query: batch[i],
+            ...res
+        })))
+    }
+    return allResults
+}
+
 export const searchAlbums = async ({query, limit, headers}) => {
     const params = {
         q: query,
@@ -36,3 +60,4 @@ export const searchAlbums = async ({query, limit, headers}) => {
     }))
 
 }
+

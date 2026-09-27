@@ -1,6 +1,6 @@
-import { searchTracks as searchTracksService, searchAlbums as searchAlbumService} from '../../services/spotifyCatalogService.js'
+import { searchTracks as searchTracksService, searchAlbums as searchAlbumService, searchMultipleTracks} from '../../services/spotifyCatalogService.js'
 import { formatMcpJsonResponse, formatMcpReturnError, getMcpAnnotations, getMcpSecurityMeta } from '../utilities.js'
-import { searchAlbumsResultSchema, catalogSearchInputSchema, searchTracksResultSchema } from '../schemas/catalogSchemas.js'
+import { searchAlbumsResultSchema, catalogSearchInputSchema, searchTracksResultSchema, searchMultipleTracksInputSchema, searchMultipleTracksResultSchema } from '../schemas/catalogSchemas.js'
 
 
 
@@ -9,7 +9,7 @@ const registerCatalogSearchToool = (server, {name, title, description, outputSch
         name, 
         {
             title, description, inputSchema: catalogSearchInputSchema, outputSchema,
-            annotations: getMcpAnnotations(), ...getMcpSecurityMeta()
+            annotations: getMcpAnnotations(), _meta: getMcpSecurityMeta()
         },
         async ({query, limit}) => {
             try {
@@ -49,6 +49,27 @@ export const registerCatalogTools = (server, {getSpotifyHeaders}) => {
             searchService: searchAlbumService,
             failureMessage: 'Failed to search Spotify albums',
             getSpotifyHeaders: getSpotifyHeaders
+        }
+    )
+
+    server.registerTool(
+        'search_multiple_tracks',
+        {
+            title: 'Search multiple Spotify tracks',
+            description: 'Search the Spotify catalog for multiple tracks matching multiple text queries and return track metadata and Spotify URIs grouped by query.',
+            inputSchema: searchMultipleTracksInputSchema,
+            outputSchema: searchMultipleTracksResultSchema,
+            annotations: getMcpAnnotations(),
+            _meta: getMcpSecurityMeta()
+        },
+        async ({queries, per_query_limit}) => {
+            try {
+                const headers = await getSpotifyHeaders()
+                const results = await searchMultipleTracks({queries, perQueryLimit:per_query_limit, headers})
+                return formatMcpJsonResponse({results})
+            } catch (e) {
+                return formatMcpReturnError(e, "Failed to search Spotify tracks")
+            }
         }
     )
 }

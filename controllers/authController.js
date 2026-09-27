@@ -33,7 +33,7 @@ const getSpotifyLinks = () => {
 }
 
 export const protectedResourceMetadata = (req, res) => {
-  const resource = process.env.AUTH0_AUDIENCE
+  const resource = process.env.MCP_RESOURCE_URI ?? process.env.AUTH0_AUDIENCE
   const authorizationServer = `https://${process.env.AUTH0_DOMAIN}/`
   res.json({
     resource,

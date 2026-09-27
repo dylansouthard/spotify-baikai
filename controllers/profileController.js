@@ -4,9 +4,9 @@ import axios from 'axios'
 import { throwError } from '../util/conveniences.js'
 import { ERROR_TYPE } from '../constants/errorsType.js'
 import { API_CONST, getBearerToken } from '../constants/apiConstants.js'
-import { fetchTopItems, fetchSavedAlbums, fetchFollowedArtists } from '../services/tasteService.js'
 import { breakDownTrack } from './trackController.js'
 import { breakDownSavedAlbum, sampleItems, sampleArray } from '../util/conveniences.js'
+import { fetchTopItems, fetchSavedAlbums, fetchFollowedArtists } from '../services/spotifyLibraryService.js'
 
 export const getUserTasteProfile = asyncHandler(async (req, res) => {
     const header = getBearerToken(req)
@@ -155,9 +155,4 @@ function addError(errors, error, field) {
       })
 }
 
-function divideResults(results) {
-    return {
-        fulfilled: results.filter(r => r.status === 'fulfilled').map(f => f.value),
-        errors: results.filter(r => r.status !== 'fulfilled').map(r => r.reason?.response?.data?.error?.message ?? error?.message ?? 'Unknown error')
-    }
-}
+
