@@ -66,6 +66,27 @@ export const getFollowedArtists = async ({limit = 50, after, headers}) => {
     return {artists: items.map(a => a.name), after:cursors.after, total}
 }
 
+export async function getConsecutiveFollowedArtists({
+    limit=50,
+    after,
+    headers,
+    fetchNext = false,
+    totalLimit = 300
+}) {
+
+    const {artists, after:nextAfter, total} = await getFollowedArtists({limit, after, headers})
+    
+    if (fetchNext && nextAfter) {
+        const remainingLimit = totalLimit - artists.length
+        if (remainingLimit > 0) {
+            const nextLimit = Math.min(remainingLimit, limit)
+            const results = await getConsecutiveFollowedArtists({limit:nextLimit, after:nextAfter, headers, fetchNext:true, totalLimit:remainingLimit})
+            artists.push(...results.artists)
+        }
+    }
+    return {total:total, artists}
+}
+
 export async function fetchFollowedArtists({
     limit=50,
     after,
@@ -73,18 +94,14 @@ export async function fetchFollowedArtists({
     fetchNext = false,
     totalLimit = 300
 }) {
-    const response = await axios.get(`${API_CONST.SF_API_BASE}me/following`, {
-      headers,
-      params: { limit, after, type:'artist' },
-    })
-    
-    const data = response.data.artists
-    const fetchedArtists = data.items.map(a => a.name)
-    if (fetchNext && data.cursors.after) {
-        const remainingLimit = totalLimit - fetchedArtists.length
+
+    const {artists, after:nextAfter, total} = await getFollowedArtists({limit, after, headers})
+
+    if (fetchNext && after) {
+        const remainingLimit = totalLimit - artists.length
         if (remainingLimit > 0) {
             const nextLimit = Math.min(remainingLimit, limit)
-            const results = await fetchFollowedArtists({limit:nextLimit, after:data.cursors.after, headers, fetchNext:true, totalLimit:remainingLimit})
+            const results = await fetchFollowedArtists({limit:nextLimit, after, headers, fetchNext:true, totalLimit:remainingLimit})
             fetchedArtists.push(...results)
         }
     }

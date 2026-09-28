@@ -1,6 +1,6 @@
 import * as z from 'zod/v4'
 import { timeRanges, defaultLimit, defaultOffset} from './conveniences.js'
-import { paginatedResultsSchema } from './shared.js'
+import { paginatedResultsSchema, savedAlbumSchema } from './shared.js'
 
 
 const trackSchema = z.object({
@@ -29,12 +29,6 @@ export const topItemsInputSchema = z.object({
     limit: defaultLimit.optional(),
     offset: defaultOffset.optional()
 }).strict()
-
-const savedAlbumSchema = z.object({
-    name: z.string(),
-    artist: z.string(),
-    added_at: z.string()
-})
 
 export const savedAlbumsResultsSchema = paginatedResultsSchema.extend({
     albums: z.array(savedAlbumSchema)

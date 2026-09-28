@@ -27,6 +27,14 @@ export const breakDownPlaylist = (playlist) => ({ id: playlist.id, name: playlis
 
 export const breakDownTrack = (track, allArtists = true) => ({ title: track.name, artist: allArtists ? joinArtists(track.artists) : getFirstArtist(track.artists)})
 
+export const breakDownTracksByArtist  = (tracks, allArtists = false) => {
+  return tracks.map(i => breakDownTrack(i, allArtists)).reduce((acc, trk) => {
+            if (!acc[trk.artist]) acc[trk.artist] = []
+            acc[trk.artist].push(trk.title)
+            return acc
+          }, {})
+}
+
 export function sampleItems(total, initialOffset, targetCount = 90, phases = 3, maxLimitPerReq = 50) {
     const requests = {}
 
@@ -40,7 +48,11 @@ export function sampleItems(total, initialOffset, targetCount = 90, phases = 3, 
             })
             offset += maxLimitPerReq
         }
-        requests['all'] = allRequests
+        requests.all = {
+          requests: allRequests,
+          offseet: initialOffset,
+          total
+        }
     } else {
         const perPhase = Math.floor(targetCount / phases)
         const remainder = targetCount % phases
@@ -125,4 +137,14 @@ export const chunkArray = (array, size) => {
     return chunks
 }
 
-export const getErrorMessage = (error, fallback) => error.response?.data?.error?.message ?? error.response.message ?? fallback
+export const getErrorMessage = (error, fallback) => error.response?.data?.error?.message ?? error.response?.message ?? error.message ?? fallback
+
+function addError(errors, error, field) {
+    errors.push({
+        field,
+        message:
+          error?.response?.data?.error?.message
+          ?? error?.message
+          ?? 'Unknown error',
+      })
+}

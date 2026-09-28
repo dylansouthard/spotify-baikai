@@ -12,6 +12,7 @@ import { createSpotifyOAuthStateService } from "../services/spotifyOAuthStateSer
 import { createSpotifyLinkService } from '../services/spotifyLinkService.js'
 import { registerPlaybacktools } from "./tools/player.js";
 import { registerWorkflowTools } from "./tools/workflow.js";
+import { registerTasteTools } from "./tools/taste.js";
 
 
 
@@ -90,6 +91,7 @@ export const createServer = ({authInfo} = {}) => {
     registerPlaylistTools(server, { getSpotifyHeaders })
     registerPlaybacktools(server, { getSpotifyHeaders })
     registerWorkflowTools(server, { getSpotifyHeaders })
+    registerTasteTools(server, { getSpotifyHeaders })
     return server
 }
 

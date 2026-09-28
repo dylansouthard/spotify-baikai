@@ -21,3 +21,16 @@ export const trackSchema = z.object({
     title:z.string(),
     artist:z.string()
 })
+
+export const workflowErrorSchema = z.object({
+    field: z.string(),
+    message: z.string()
+})
+
+export const yearSchema = z.string().regex(/^\d{4}$/)
+
+export const savedAlbumSchema = z.object({
+    name: z.string(),
+    artist: z.string(),
+    added_at: z.string()
+})
