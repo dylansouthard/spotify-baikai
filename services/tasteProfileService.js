@@ -4,7 +4,7 @@ import { getErrorMessage, sampleItems, breakDownTracksByArtist, sampleArray } fr
 
 export const getTasteProfile = async ({headers}) => {
     const {savedItems:saved_albums, errors:savedAlbumErrors} = await getSavedItems({type:'album', headers})
-    const {savedItems:saved_tracks, errors:savedTrackErrors} = await getSavedItems({type:'track', headers})
+    const {savedItems:saved_tracks, errors:savedTrackErrors} = await getSavedItems({type:'track', headers, targetCount: 400, phases:4, mostRecentPhaseCount:50})
     const {data:followed_artists, errors:followedArtistErrors} = await getFollowedArtists(headers)
     const {values:top_tracks, errors:topTrackErrors} = await getTopItems('tracks', headers)
     const {values:top_artists, errors:topArtistErrors} = await getTopItems('artists', headers)
@@ -26,7 +26,7 @@ export const getTasteProfile = async ({headers}) => {
 }
 
 
-async function getSavedItems({type='track', headers, targetCount = 120, phases = 3, mostRecentLimit = 10}) {
+async function getSavedItems({type='track', headers, targetCount = 120, phases = 3, mostRecentLimit = 10, mostRecentPhaseCount}) {
     const resData = {savedItems: {total:0, most_recent:[], sampled_items:{}}, errors:[]}
     try {
         const {total, items:most_recent } = await fetchSavedItems({type, limit:mostRecentLimit, headers})
@@ -37,18 +37,34 @@ async function getSavedItems({type='track', headers, targetCount = 120, phases =
             sampled_items: {}
         }
 
-        const remainingTotal = total - most_recent.length
+        let remainingTotal = total - most_recent.length
         if (remainingTotal < 1) return resData
 
-        const requestParams = sampleItems(remainingTotal, mostRecentLimit, targetCount, phases, 50)
+        let requestParams = {}
+        if (mostRecentPhaseCount) {
+            requestParams['phase_0'] = {
+                requests:[{offset:mostRecentLimit, limit: mostRecentPhaseCount}],
+                offset: mostRecentLimit,
+                total: mostRecentPhaseCount
+            }
+            remainingTotal -= mostRecentPhaseCount
+        }
+        
+        if (remainingTotal >= 1) {
+            requestParams = {...requestParams, ...sampleItems(remainingTotal, mostRecentLimit, targetCount, phases, 50)}
+        }
         
         const phaseResults = await Promise.all(
             Object.entries(requestParams).map(([phase, {requests, offset, total}]) => fetchItemPhase(phase, requests, offset, total, headers, type))
         )
 
         phaseResults.forEach(({phase, items, errors, offset}) => {
-
-            const itemsByYear = items.reduce((acc, itm) => {
+            const counts = new Map()
+            for (const item of items) {
+                counts.set(item.added_at, (counts.get(item.added_at) ?? 0) + 1)
+            }
+            const uniqueItems = items.filter(item => counts.get(item.added_at) === 1)
+            const itemsByYear = uniqueItems.reduce((acc, itm) => {
                 const year = `${new Date(itm.added_at).getFullYear()}`
                 if (!acc[year]) acc[year] = {}
                 if (!acc[year][itm.artist]) acc[year][itm.artist] = []
