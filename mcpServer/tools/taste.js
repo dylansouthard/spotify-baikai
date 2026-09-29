@@ -19,7 +19,8 @@ export const registerTasteTools = (server, {getSpotifyHeaders}) => {
             try {
                 const headers = await getSpotifyHeaders()
                 const result = await getTasteProfile({headers})
-                return formatMcpJsonResponse(result)
+                const parsed = tasteProfileResultSchema.parse(result)
+                return formatMcpJsonResponse(parsed)
             } catch (e) {
                 return formatMcpReturnError(e, 'Failed to get the user\'s taste profile')
             }

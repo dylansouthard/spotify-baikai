@@ -1,9 +1,9 @@
 import * as z from 'zod/v4'
-import {yearSchema, workflowErrorSchema, savedAlbumSchema} from './shared.js'
+import {yearSchema, workflowErrorSchema, savedItemSchema} from './shared.js'
 import { timeRanges } from './conveniences.js'
 
 
-const tpSavedAlbumsSchema = z.record(
+const tpSavedItemsSchema = z.record(
     yearSchema,
     z.record(
         z.string(),
@@ -26,14 +26,16 @@ const tpTopArtistsSchema = z.record(
     z.array(z.string())
 )
 
-const tpSavedAlbumsResultsSchema = z.object({
+const tpSavedItemsResultsSchema = z.object({
     total: z.number().int(),
-    most_recent: z.array(savedAlbumSchema),
-    sampled_albums: z.record(
+    most_recent: z.array(savedItemSchema),
+    sampled_items_phase_order: z.literal('recent_to_oldest')
+    .default('recent_to_oldest'),
+    sampled_items: z.record(
         z.string(),
         z.object({
             offset: z.number().int(),
-            albums:tpSavedAlbumsSchema
+            items:tpSavedItemsSchema
         })
     )
 })
@@ -47,7 +49,8 @@ const tpFollowedArtistSchema = z.object ({
 export const tasteProfileResultSchema = z.object({
     top_artists: tpTopArtistsSchema,
     top_tracks: tpTopTracksSchema,
-    saved_albums:tpSavedAlbumsResultsSchema,
+    saved_albums: tpSavedItemsResultsSchema,
+    saved_tracks: tpSavedItemsResultsSchema,
     followed_artists: tpFollowedArtistSchema,
     errors: z.array(workflowErrorSchema)
 })

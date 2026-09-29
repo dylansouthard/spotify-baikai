@@ -1,9 +1,10 @@
-import { fetchSavedAlbums, fetchTopItems, getConsecutiveFollowedArtists } from './spotifyLibraryService.js'
+import { fetchTopItems, getConsecutiveFollowedArtists, fetchSavedItems } from './spotifyLibraryService.js'
 import { getErrorMessage, sampleItems, breakDownTracksByArtist, sampleArray } from '../util/conveniences.js'
 
 
 export const getTasteProfile = async ({headers}) => {
-    const {savedAlbums:saved_albums, errors:savedAlbumErrors} = await getSavedAlbums({headers})
+    const {savedItems:saved_albums, errors:savedAlbumErrors} = await getSavedItems({type:'album', headers})
+    const {savedItems:saved_tracks, errors:savedTrackErrors} = await getSavedItems({type:'track', headers})
     const {data:followed_artists, errors:followedArtistErrors} = await getFollowedArtists(headers)
     const {values:top_tracks, errors:topTrackErrors} = await getTopItems('tracks', headers)
     const {values:top_artists, errors:topArtistErrors} = await getTopItems('artists', headers)
@@ -12,78 +13,81 @@ export const getTasteProfile = async ({headers}) => {
         top_tracks,
         top_artists,
         saved_albums,
+        saved_tracks,
         followed_artists,
         errors:[
             ...savedAlbumErrors,
             ...topArtistErrors,
             ...topTrackErrors,
-            ...followedArtistErrors
+            ...followedArtistErrors,
+            ...savedTrackErrors
         ]
     }
 }
 
 
-async function getSavedAlbums({headers, targetCount = 120, phases = 3, mostRecentLimit = 10}) {
-    const resData = {savedAlbums: {total:0, most_recent:[], sampled_albums:{}}, errors:[]}
+async function getSavedItems({type='track', headers, targetCount = 120, phases = 3, mostRecentLimit = 10}) {
+    const resData = {savedItems: {total:0, most_recent:[], sampled_items:{}}, errors:[]}
     try {
-        const firstRes = await fetchSavedAlbums({limit:mostRecentLimit, headers})
-        const total = firstRes.total
-        resData.savedAlbums['total'] = total
-        const albums = firstRes.albums
-        resData.savedAlbums['most_recent'] = albums
-        const remainingTotal = total - albums.length
+        const {total, items:most_recent } = await fetchSavedItems({type, limit:mostRecentLimit, headers})
+
+        resData.savedItems = {
+            total,
+            most_recent,
+            sampled_items: {}
+        }
+
+        const remainingTotal = total - most_recent.length
         if (remainingTotal < 1) return resData
 
         const requestParams = sampleItems(remainingTotal, mostRecentLimit, targetCount, phases, 50)
         
         const phaseResults = await Promise.all(
-            Object.entries(requestParams).map(([phase, {requests, offset, total}]) => fetchAlbumPhase(phase, requests, offset, total, headers))
+            Object.entries(requestParams).map(([phase, {requests, offset, total}]) => fetchItemPhase(phase, requests, offset, total, headers, type))
         )
 
-        
+        phaseResults.forEach(({phase, items, errors, offset}) => {
 
-        phaseResults.forEach(({phase, albums, errors, offset}) => {
-
-            const albumByYear = albums.reduce((acc, alb) => {
-                const year = `${new Date(alb.added_at).getFullYear()}`
+            const itemsByYear = items.reduce((acc, itm) => {
+                const year = `${new Date(itm.added_at).getFullYear()}`
                 if (!acc[year]) acc[year] = {}
-                if (!acc[year][alb.artist]) acc[year][alb.artist] = []
-                acc[year][alb.artist].push(alb.name)
+                if (!acc[year][itm.artist]) acc[year][itm.artist] = []
+                acc[year][itm.artist].push(itm.name)
 
                 return acc
             }, {})
 
-            resData.savedAlbums['sampled_albums'][phase] = {
+            resData.savedItems['sampled_items'][phase] = {
               offset: Number(offset),
-              albums: albumByYear
+              items: itemsByYear
 
             }
             resData.errors.push(...errors)
         })
 
     } catch(e) {
-        resData.errors.push({field: 'saved_albums', message:getErrorMessage(e)})
+        resData.errors.push({field: `saved_${type}s`, message:getErrorMessage(e)})
     }
     return resData
 }
 
-async function fetchAlbumPhase(phase, requests, offset, total, headers) {
+async function fetchItemPhase(phase, requests, offset, total, headers, type = 'track') {
   const results = await Promise.allSettled(
-    requests.map(params => fetchSavedAlbums({ headers, ...params }))
+    requests.map(params => fetchSavedItems({ headers, type, ...params }))
   )
 
-  const albums = []
+  const items = []
   const errors = []
 
   results.forEach(result => {
     if (result.status === 'fulfilled') {
-      albums.push(...result.value.albums)
+      items.push(...result.value.items)
     } else {
-        errors.push({field: `saved_albums_${phase}`, message: getErrorMessage(result.reason, 'Unknown Error')})
+        errors.push({field: `saved_${type}s_${phase}`, message: getErrorMessage(result.reason, 'Unknown Error')})
     }
   })
 
-  return { phase, albums, errors, offset, total }
+  return { phase, items, errors, offset, total }
 }
 
 async function getTopItems(type, headers) {

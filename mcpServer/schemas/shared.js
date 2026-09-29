@@ -34,3 +34,9 @@ export const savedAlbumSchema = z.object({
     artist: z.string(),
     added_at: z.string()
 })
+
+export const savedItemSchema = z.object({
+    name: z.string(),
+    artist: z.string(),
+    added_at: z.string()
+})

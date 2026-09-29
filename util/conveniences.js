@@ -23,6 +23,12 @@ export function breakDownSavedAlbum(item) {
   }
 }
 
+export const breakDownSavedItem = (item, type) =>({
+  name:item[type].name,
+  artist: getFirstArtist(item[type].artists),
+  added_at: item.added_at
+})
+
 export const breakDownPlaylist = (playlist) => ({ id: playlist.id, name: playlist.name })
 
 export const breakDownTrack = (track, allArtists = true) => ({ title: track.name, artist: allArtists ? joinArtists(track.artists) : getFirstArtist(track.artists)})
@@ -50,7 +56,7 @@ export function sampleItems(total, initialOffset, targetCount = 90, phases = 3, 
         }
         requests.all = {
           requests: allRequests,
-          offseet: initialOffset,
+          offset: initialOffset,
           total
         }
     } else {

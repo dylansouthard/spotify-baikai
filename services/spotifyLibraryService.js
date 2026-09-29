@@ -1,7 +1,7 @@
 import axios from "axios";
 
 import { API_CONST } from "../constants/apiConstants.js";
-import { breakDownSavedAlbum, breakDownTrack, getNextOffset } from "../util/conveniences.js";
+import { breakDownSavedAlbum, breakDownTrack, getNextOffset, breakDownSavedItem } from "../util/conveniences.js";
 
 
 export const getLikedTracks = async ({limit, offset, headers}) => {
@@ -40,6 +40,21 @@ export async function fetchTopItems({
       params: { time_range, limit, offset },
     })
     return response.data.items
+}
+
+export async function fetchSavedItems({
+    type = "track",
+    limit = 50,
+    offset = 0,
+    headers
+}) {
+    const response = await axios.get(`${API_CONST.SF_API_BASE}me/${type}s`, {
+      headers,
+      params: { limit, offset },
+    })
+    const {items, next, total} = response.data
+    const nextOffset = getNextOffset(next, items, offset)
+    return {items: items.map(itm => breakDownSavedItem(itm, type)), total, nextOffset}
 }
 
 export async function fetchSavedAlbums({
