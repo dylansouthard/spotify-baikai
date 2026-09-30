@@ -1,8 +1,9 @@
 import * as z from 'zod/v4'
+import { deviceIdSchema, spotifyTrackUriSchema} from './shared.js'
 
 
 const playInputSchema = z.object({
-    device_id: z.string().optional()
+    device_id: deviceIdSchema
 })
 
 export const playContextSchema = playInputSchema.extend({
@@ -10,5 +11,5 @@ export const playContextSchema = playInputSchema.extend({
 }).strict()
 
 export const playTracksSchema = playInputSchema.extend({
-    uris: z.array(z.string()).describe('An array of the Spotify track URIs to play.')
+    uris: z.array(spotifyTrackUriSchema).min(1)
 }).strict()

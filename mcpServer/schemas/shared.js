@@ -40,3 +40,16 @@ export const savedItemSchema = z.object({
     artist: z.string(),
     added_at: z.string()
 })
+
+export const deviceIdSchema = z.string().describe(
+    'Optional Spotify device ID. If omitted, Spotify targets the user’s currently active device.'
+)
+
+export const spotifyTrackUriSchema = z.string().regex(
+      /^spotify:track:[A-Za-z0-9]{22}$/,
+      'Must be a Spotify track URI'
+    )
+
+export const addedAtSchema = z.string().describe(
+    'UTC timestamp when the item was saved to the user’s Spotify library; not its release date or last-played time.'
+)

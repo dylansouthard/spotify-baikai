@@ -1,6 +1,6 @@
 import * as z from 'zod/v4'
 import { defaultLimit, defaultOffset } from './conveniences.js'
-import { paginatedResultsSchema, trackSchema} from './shared.js'
+import { paginatedResultsSchema, trackSchema, spotifyTrackUriSchema} from './shared.js'
 
 export const listPlaylistsInputSchema = z.object({
     limit: defaultLimit,
@@ -29,10 +29,7 @@ export const createPlaylistResultSchema = z.object({
 export const addTracksToPlaylistInputSchema = z.object({
   playlist_id: z.string().min(1),
   uris: z.array(
-    z.string().regex(
-      /^spotify:track:[A-Za-z0-9]{22}$/,
-      'Must be a Spotify track URI'
-    )
+    spotifyTrackUriSchema
   ).min(1),
 }).strict()
 

@@ -1,5 +1,5 @@
 import * as z from 'zod/v4'
-import { trackSchema } from './shared.js'
+import { trackSchema, deviceIdSchema } from './shared.js'
 
 export const createAndPlayPlaylistInputSchema = z.object({
 
@@ -26,14 +26,7 @@ export const createAndPlayPlaylistInputSchema = z.object({
             'Spotify track URIs to add to the playlist, in playback order.'
         ),
 
-    device_id: z
-        .string()
-        .trim()
-        .min(1)
-        .optional()
-        .describe(
-            'Optional Spotify device ID on which to start playback.'
-        ),
+    device_id: deviceIdSchema
 
 }).strict()
 

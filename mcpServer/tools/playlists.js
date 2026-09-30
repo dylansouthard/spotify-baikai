@@ -93,7 +93,7 @@ export const registerPlaylistTools = (server, {getSpotifyHeaders}) => {
         {
             title: 'Add tracks to Spotify playlist',
             description:
-            'Add one or more Spotify track URIs to an existing playlist.',
+            'Append one or more Spotify track URIs to an existing playlist. Tracks are added in the same order as the supplied URI array.',
             inputSchema: addTracksToPlaylistInputSchema,
             outputSchema: addTracksToPlaylistResultSchema,
             _meta: getMcpSecurityMeta(),

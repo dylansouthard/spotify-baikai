@@ -8,7 +8,7 @@ export const registerWorkflowTools = (server, {getSpotifyHeaders}) => {
         'create_and_play_playlist',
         {
             title: 'Create and play a Spotify playlist',
-            description: 'Create a playlist, add tracks, and play for the user.',
+            description: 'Create a new private playlist, add the supplied tracks in order, and start playback. Prefer this convenience tool when the user wants the complete create-and-play workflow rather than calling the individual playlist tools separately.',
             inputSchema: createAndPlayPlaylistInputSchema,
             outputSchema: createAndPlayPlaylistResultSchema,
             _meta: getMcpSecurityMeta(),

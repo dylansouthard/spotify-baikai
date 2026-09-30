@@ -10,7 +10,13 @@ export const registerTasteTools = (server, {getSpotifyHeaders}) => {
         'get_taste_profile',
         {
             title: 'Get the User\'s taste profile',
-            description: 'Return samples of tracks, albums, and artists the frequently listened to by the user over various time periods.',
+            description: 'Build a compact overview of the user’s musical taste from multiple Spotify signals, ' +
+            'including top artists and tracks across recent affinity periods, sampled saved albums ' +
+            'and tracks across the user’s library history, and followed artists. Use this when you ' +
+            'need a broad understanding of the user’s current and historical music preferences for ' +
+            'recommendations, discovery, or taste analysis. Top items reflect Spotify-calculated ' +
+            'affinity rather than raw play counts, and saved/followed items should not be interpreted ' +
+            'as listening frequency.',
             outputSchema:tasteProfileResultSchema,
             annotations: getMcpAnnotations(),
             _meta: getMcpSecurityMeta(),

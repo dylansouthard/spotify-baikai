@@ -56,7 +56,7 @@ export const registerCatalogTools = (server, {getSpotifyHeaders}) => {
         'search_multiple_tracks',
         {
             title: 'Search multiple Spotify tracks',
-            description: 'Search the Spotify catalog for multiple tracks matching multiple text queries and return track metadata and Spotify URIs grouped by query.',
+            description: 'Search the Spotify catalog for multiple track queries in one request and return candidate matches grouped by query. Prefer this over repeated search_tracks calls when resolving several track names to Spotify URIs.',
             inputSchema: searchMultipleTracksInputSchema,
             outputSchema: searchMultipleTracksResultSchema,
             annotations: getMcpAnnotations(),
